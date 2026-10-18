@@ -1,0 +1,356 @@
+@import "tailwindcss";
+
+/*
+ * git-trace design tokens.
+ *
+ * Two ideas keep the theming small:
+ *
+ * 1. The UI is built entirely on the zinc ramp (zinc-950 canvas → zinc-100
+ *    headings). Tailwind v4 compiles `bg-zinc-900` to
+ *    `background-color: var(--color-zinc-900)`, so the light theme is a
+ *    *remap of that ramp* — surfaces flip to near-white, text flips to
+ *    near-black — instead of a second set of component styles.
+ *
+ * 2. The accent is one `--accent-base` hex mixed into a ramp with
+ *    `color-mix()`. The palette picker in Settings rewrites that single
+ *    variable, and since every `indigo-*` utility is aliased onto the ramp,
+ *    the whole interface follows the choice.
+ */
+
+:root {
+  /* Rewritten at runtime by the accent picker (see src/web/lib/theme.ts). */
+  --accent-base: #4f46e5;
+
+  --accent-200: color-mix(in oklab, var(--accent-base) 70%, white);
+  --accent-300: color-mix(in oklab, var(--accent-base) 58%, white);
+  --accent-400: color-mix(in oklab, var(--accent-base) 80%, white);
+  --accent-500: var(--accent-base);
+  --accent-600: color-mix(in oklab, var(--accent-base) 88%, black);
+  --accent-700: color-mix(in oklab, var(--accent-base) 72%, black);
+  --accent-900: color-mix(in oklab, var(--accent-base) 40%, black);
+
+  /* Every `indigo-*` utility in the app resolves through the accent ramp. */
+  --color-indigo-200: var(--accent-200);
+  --color-indigo-300: var(--accent-300);
+  --color-indigo-400: var(--accent-400);
+  --color-indigo-500: var(--accent-500);
+  --color-indigo-600: var(--accent-600);
+  --color-indigo-700: var(--accent-700);
+  --color-indigo-950: var(--accent-900);
+
+  --brand-from: var(--accent-600);
+  --brand-to: var(--accent-400);
+
+  --background: #09090b;
+  --foreground: #f4f4f5;
+  --card: #111113;
+  --card-foreground: var(--foreground);
+  --popover: #111113;
+  --popover-foreground: var(--foreground);
+  --primary: var(--accent-600);
+  --primary-foreground: #ffffff;
+  --secondary: #18181b;
+  --secondary-foreground: var(--foreground);
+  --muted: #18181b;
+  --muted-foreground: #a1a1aa;
+  --accent: #1e1b4b;
+  --accent-foreground: var(--foreground);
+  --destructive: #f43f5e;
+  --destructive-foreground: #ffffff;
+  --border: #27272a;
+  --input: #27272a;
+  --ring: var(--accent-500);
+  --radius: 0.75rem;
+
+  --glass-bg: rgb(17 17 19 / 0.7);
+  --glass-border: rgb(255 255 255 / 0.07);
+  --glass-border-hover: rgb(255 255 255 / 0.15);
+  --glass-shadow: rgb(0 0 0 / 0.5);
+  --scrollbar-thumb-hover: #3f3f46;
+  --page-glow: rgb(99 102 241 / 0.05);
+
+  color-scheme: dark;
+}
+
+/* ------------------------------------------------------------------ light */
+
+/*
+ * The zinc ramp inverted. `--color-zinc-950` is the page and `--color-zinc-900`
+ * a raised surface in dark mode; in light mode those become white and zinc-50,
+ * while the text stops (zinc-100/200/400) become near-black.
+ */
+html.light {
+  --background: #fafafa;
+  --foreground: #18181b;
+  --card: #ffffff;
+  --card-foreground: var(--foreground);
+  --popover: #ffffff;
+  --popover-foreground: var(--foreground);
+  --secondary: #f4f4f5;
+  --secondary-foreground: var(--foreground);
+  --muted: #f4f4f5;
+  --muted-foreground: #52525b;
+  --accent: color-mix(in oklab, var(--accent-base) 8%, white);
+  --border: #e4e4e7;
+  --input: #e4e4e7;
+
+  --color-zinc-950: #ffffff;
+  --color-zinc-900: #f4f4f5;
+  --color-zinc-800: #e4e4e7;
+  --color-zinc-700: #d4d4d8;
+  --color-zinc-600: #a1a1aa;
+  --color-zinc-500: #71717a;
+  --color-zinc-400: #52525b;
+  --color-zinc-300: #3f3f46;
+  --color-zinc-200: #27272a;
+  --color-zinc-100: #18181b;
+  --color-zinc-50: #09090b;
+
+  /* Accent text stops need to read on white, and the status colours need
+   * their -600/-700 variants — the -400 tints are dark-mode-only. */
+  --color-indigo-200: var(--accent-700);
+  --color-indigo-300: var(--accent-700);
+  --color-indigo-400: var(--accent-600);
+  --color-indigo-500: var(--accent-500);
+  --color-indigo-600: var(--accent-600);
+  --color-indigo-700: var(--accent-700);
+  --color-emerald-400: #047857;
+  --color-emerald-300: #059669;
+  --color-cyan-400: #0e7490;
+  --color-cyan-500: #0891b2;
+  --color-amber-400: #b45309;
+  --color-rose-400: #be123c;
+  --color-rose-500: #e11d48;
+
+  --brand-from: var(--accent-600);
+  --brand-to: var(--accent-500);
+
+  --glass-bg: rgb(255 255 255 / 0.75);
+  --glass-border: rgb(9 9 11 / 0.08);
+  --glass-border-hover: rgb(9 9 11 / 0.18);
+  --glass-shadow: rgb(9 9 11 / 0.12);
+  --scrollbar-thumb-hover: #a1a1aa;
+  --page-glow: color-mix(in oklab, var(--accent-base) 6%, transparent);
+
+  color-scheme: light;
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --font-sans: "Inter", ui-sans-serif, system-ui, -apple-system, sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, "Fira Code", Menlo, monospace;
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+}
+
+@layer base {
+  * {
+    border-color: var(--color-border);
+  }
+  html,
+  body,
+  #root {
+    height: 100%;
+  }
+  body {
+    margin: 0;
+    background-color: var(--color-background);
+    color: var(--color-foreground);
+    font-family: var(--font-sans);
+    -webkit-font-smoothing: antialiased;
+    overflow-x: hidden;
+  }
+  ::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+  }
+  ::-webkit-scrollbar-track {
+    background: var(--background);
+  }
+  ::-webkit-scrollbar-thumb {
+    background: var(--border);
+    border-radius: 9999px;
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    background: var(--scrollbar-thumb-hover);
+  }
+}
+
+@layer components {
+  /* The signature surface: translucent panel with a hairline border. */
+  .glass-panel {
+    background: var(--glass-bg);
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+    border: 1px solid var(--glass-border);
+  }
+
+  .glass-panel-interactive {
+    background: var(--glass-bg);
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+    border: 1px solid var(--glass-border);
+    transition:
+      border-color 0.2s cubic-bezier(0.16, 1, 0.3, 1),
+      box-shadow 0.2s cubic-bezier(0.16, 1, 0.3, 1),
+      transform 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+  }
+
+  .glass-panel-interactive:hover {
+    border-color: var(--glass-border-hover);
+    box-shadow: 0 8px 32px -8px var(--glass-shadow);
+  }
+
+  .code-glow {
+    box-shadow: inset 0 0 20px var(--page-glow);
+  }
+
+  /* A gradient that always lands on the chosen accent. */
+  .accent-gradient {
+    background-image: linear-gradient(135deg, var(--brand-from), var(--brand-to));
+  }
+
+  /* Tab panels fade/slide in, mirroring the reference design's AnimatePresence. */
+  .tab-in {
+    animation: tab-in 0.2s ease-out;
+  }
+
+  /* Children rise in sequence — apply to a grid of cards. */
+  .stagger > * {
+    animation: rise 0.36s cubic-bezier(0.16, 1, 0.3, 1) both;
+  }
+  .stagger > *:nth-child(2) {
+    animation-delay: 0.04s;
+  }
+  .stagger > *:nth-child(3) {
+    animation-delay: 0.08s;
+  }
+  .stagger > *:nth-child(4) {
+    animation-delay: 0.12s;
+  }
+  .stagger > *:nth-child(5) {
+    animation-delay: 0.16s;
+  }
+  .stagger > *:nth-child(6) {
+    animation-delay: 0.2s;
+  }
+  .stagger > *:nth-child(7) {
+    animation-delay: 0.24s;
+  }
+  .stagger > *:nth-child(n + 8) {
+    animation-delay: 0.28s;
+  }
+
+  /* Horizontal bars grow from the left instead of appearing at full width. */
+  .grow-x {
+    transform-origin: left;
+    animation: grow-x 0.6s cubic-bezier(0.16, 1, 0.3, 1) both;
+  }
+
+  /* Radix overlays: the content keeps `translate: -50% -50%` for centring, so
+   * the entrance animates `scale` (a separate property) and cannot clobber it. */
+  .dialog-pop {
+    translate: -50% -50%;
+    animation: pop-in 0.18s cubic-bezier(0.16, 1, 0.3, 1);
+  }
+  .dialog-fade {
+    animation: fade-in 0.15s ease-out;
+  }
+  .select-pop {
+    animation: select-in 0.14s cubic-bezier(0.16, 1, 0.3, 1);
+  }
+  .no-scrollbar {
+    scrollbar-width: none;
+  }
+  .no-scrollbar::-webkit-scrollbar {
+    display: none;
+  }
+}
+
+@keyframes tab-in {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+@keyframes fade-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+@keyframes rise {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+@keyframes pop-in {
+  from {
+    opacity: 0;
+    scale: 0.96;
+  }
+  to {
+    opacity: 1;
+    scale: 1;
+  }
+}
+@keyframes select-in {
+  from {
+    opacity: 0;
+    scale: 0.97;
+  }
+  to {
+    opacity: 1;
+    scale: 1;
+  }
+}
+@keyframes grow-x {
+  from {
+    transform: scaleX(0);
+  }
+  to {
+    transform: scaleX(1);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .tab-in,
+  .stagger > *,
+  .grow-x,
+  .dialog-pop,
+  .dialog-fade,
+  .select-pop {
+    animation: none;
+  }
+}

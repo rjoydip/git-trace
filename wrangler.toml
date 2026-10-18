@@ -1,0 +1,16 @@
+name = "git-trace"
+main = "dist/worker/index.js"
+compatibility_date = "2025-07-18"
+compatibility_flags = ["nodejs_compat"]
+
+# Dashboard SPA, built by `bun run build:web`.
+# Assets-first routing: requests that match a file are served statically;
+# everything else (/api/*, /mcp, SPA routes) falls through to the Worker.
+[assets]
+directory = "dist/web"
+binding = "ASSETS"
+not_found_handling = "single-page-application"
+
+# No secrets and no vars. GitHub credentials are never held by the deployment:
+# each visitor supplies their own token — and their own edge-cache TTL — from the
+# dashboard's settings, both travelling as request headers.

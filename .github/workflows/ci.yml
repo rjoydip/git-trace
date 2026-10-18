@@ -1,0 +1,27 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+# Nothing here needs Cloudflare credentials: `bun run build` bundles the Worker
+# and runs `wrangler deploy --dry-run`, which catches a broken entry point or a
+# stale asset directory without touching the deployment.
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+
+      - name: Install
+        run: bun install --frozen-lockfile
+
+      - name: Format, lint, types, tests
+        run: bun run check
+
+      - name: Build dashboard and dry-run bundle the Worker
+        run: bun run build

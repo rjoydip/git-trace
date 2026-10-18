@@ -1,0 +1,51 @@
+<!doctype html>
+<html lang="en" class="dark">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <meta name="color-scheme" content="dark light" />
+    <meta name="theme-color" content="#09090b" />
+    <meta
+      name="description"
+      content="Trace a repository's history, contributors, hot files and pull requests from one control room."
+    />
+    <title>GitTrace — control room</title>
+
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <link rel="apple-touch-icon" href="/favicon.svg" />
+    <link rel="manifest" href="/manifest.webmanifest" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-title" content="GitTrace" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap"
+      rel="stylesheet"
+    />
+    <script>
+      // Applied before first paint so the stored theme and accent never flash.
+      (function () {
+        try {
+          var root = document.documentElement;
+          var light = localStorage.getItem("git-trace:theme") === "light";
+          root.classList.toggle("light", light);
+          root.classList.toggle("dark", !light);
+          root.style.colorScheme = light ? "light" : "dark";
+          // Browser/PWA chrome follows the theme too, not just the page.
+          var meta = document.querySelector('meta[name="theme-color"]');
+          if (meta) meta.setAttribute("content", light ? "#fafafa" : "#09090b");
+          var accent = localStorage.getItem("git-trace:accent");
+          if (accent) root.style.setProperty("--accent-base", accent);
+        } catch (error) {
+          /* private mode: fall back to the dark default already on <html> */
+        }
+      })();
+    </script>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="./main.tsx"></script>
+  </body>
+</html>
