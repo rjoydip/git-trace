@@ -37,7 +37,7 @@ src/
     trace.test.ts unit tests for the pure analysis
   mcp/server.ts   MCP tools/resources/prompt over the shared service
   worker/index.ts Hono app: /api/*, /mcp, static assets
-  web/            shadcn dashboard (React + Tailwind v4, 10-tab control room)
+  web/            shadcn dashboard (React + Tailwind v4, 11-tab control room)
 vite.config.ts         dashboard build (dist/web)
 wrangler.toml          Worker entry + assets
 .github/workflows/     CI (check + build) · Deploy (Cloudflare)
@@ -103,18 +103,18 @@ exercise the deployment itself, one tracks a single pull request or issue.
 headline metrics (commits traced, contributors, files touched, churn) and the
 zero-token prompt export. Every other tab reads the trace it opens.
 
-| Tab          | What it shows                                                                                                                                     |
-| ------------ | ------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Overview     | Repository target, the four headline metrics, the repo summary and the zero-token prompt export                                                   |
-| Commits      | A chronological timeline filterable by window, text, author, order and count, with an activity strip                                              |
-| Comments     | Every traced commit message in full, filterable by body, text, author, order and count — the same filter set as Commits                           |
-| PR / Issue   | Pull requests and issues filtered by state, kind and text — open one for its size, labels, review verdicts and timeline                           |
-| Contributors | Pick an author, trace their commits, inspect the raw JSON response                                                                                |
-| Hot Files    | Churn ranking by kind, a pannable/zoomable co-change knowledge graph with per-node detail, per-row diffs and file history, export in four formats |
-| Simulator    | Fire a real `tools/call` at `/mcp` — `repo` is pinned to the traced target — and read the tool payload back                                       |
-| Telemetry    | Every request the dashboard made — filterable, paged, exportable in four formats, with per-event detail                                           |
-| Tests        | Smoke-checks the MCP transport, the JSON API and the trace pipeline — per-suite pass/fail, latency and failures, exportable                       |
-| Docs         | MCP client config, the exposed-tools reference, and live deployment info                                                                          |
+| Tab          | What it shows                                                                                                                                                                                                                                                                                               |
+| ------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Overview     | Repository target, the four headline metrics, the repo summary and the zero-token prompt export                                                                                                                                                                                                             |
+| Commits      | A chronological timeline filterable by window, text, author, order and count, with an activity strip                                                                                                                                                                                                        |
+| Comments     | Every traced commit message in full, filterable by body, text, author, order and count — the same filter set as Commits                                                                                                                                                                                     |
+| PR / Issue   | Pull requests and issues filtered by state, kind and text — open one for its size, labels, review verdicts and timeline                                                                                                                                                                                     |
+| Contributors | Pick an author, trace their commits, inspect the raw JSON response                                                                                                                                                                                                                                          |
+| Hot Files    | Churn ranking by kind, a pannable/zoomable co-change knowledge graph with per-node detail, per-row diffs and file history, export in four formats                                                                                                                                                           |
+| Simulator    | Fire a real `tools/call` at `/mcp` — `repo` is pinned to the traced target — and read the tool payload back                                                                                                                                                                                                 |
+| Telemetry    | Every request the dashboard made — filterable, paged, exportable in four formats, with per-event detail                                                                                                                                                                                                     |
+| Tests        | Smoke-checks the MCP transport, the JSON API and the trace pipeline — per-suite pass/fail, latency and failures, exportable                                                                                                                                                                                 |
+| Files        | Repository browser: `@pierre/trees` with coloured VS Code-style icons and search, separate branch and tag pickers, tag/release details in a dialog, README.md open by default, Prism syntax highlighting, inline image/video/audio/PDF preview, Markdown with Raw/Rendered, copy/download and a GitHub link |
 
 Nothing is traced until you name a repository — there is no server-side default.
 The header collapses to two rows below `lg`: brand and actions on the first, a
@@ -137,6 +137,40 @@ a row loads the full record below it.
 The Telemetry Stream is fed by `src/web/lib/telemetry.ts`, a small store the
 `api` module records into; Simulator and Tests therefore show up in it for free.
 "Live" fires a real `trace_activity` tool call every 15s.
+
+### The Files tab
+
+Four requests, all only while the tab is open: `/api/refs` for the two pickers,
+`/api/tree` (GitHub's recursive listing, one call), and then either `/api/file`
+for text or `/api/raw` for bytes. Picking a tag also calls `/api/tag` and opens
+its details: GitHub's release notes when the tag has a published release, and
+the commit it points at when it does not. `README.md` is selected on
+arrival; a repository without one opens on its first file. The picker pins every
+read — tree, text, bytes and the GitHub link — to the chosen branch or tag, so a
+file can never arrive from a different ref than the listing it was picked from.
+
+The tree is `@pierre/trees`, which renders into a shadow root. Tailwind cannot
+reach inside it, but custom properties inherit across that boundary, so
+`.file-tree` in `tailwind.css` maps its `--trees-*` knobs onto the theme's own
+`--color-zinc-*` tokens: light mode and the accent colour follow for free, and
+the file icons are the library's VS Code set. Those icons are only coloured in
+the `complete` set — the library's `COLORED_SETS` contains nothing else. Text is
+highlighted by the grammars registered in `src/web/lib/highlight.ts` — a path
+outside that set renders as plain text rather than failing. Files above 100k
+characters skip both the highlighter and the Markdown renderer: Prism tokenises
+on the main thread, and a lockfile or a 128 KB test file is enough to freeze the
+tab. They render as plain text with a note saying why.
+
+`/api/raw` streams bytes the contents API will not inline, which is what makes
+images, video, audio and PDFs preview at all. It is the one endpoint that
+returns repository content as a body rather than JSON, so it pins the type
+itself: media and PDFs are `inline`, everything else — HTML above all — is
+`attachment`, with `nosniff` and a private cache. A repository file can therefore
+never execute on this origin, even if opened directly.
+
+The tab imports the tree and every grammar, so it is a lazy chunk: readers who
+never open Files never download it. The main bundle stays about 480 KB; the
+browser arrives as a separate 397 KB chunk on first use.
 
 `/api/config` reports the deployment's default `cacheTtlSeconds`; the Settings
 dialog shows it next to the per-browser override, so it is clear what a visitor
@@ -220,6 +254,11 @@ Every tool requires `repo` (`"owner/name"` or a GitHub URL) — there is no serv
 | `GET /api/hot-files?repo=&limit=`                | Churn ranking                                   |
 | `GET /api/file-history?repo=&path=`              | A file's commits                                |
 | `GET /api/diff?repo=&path=&limit=`               | A file's patches, newest first                  |
+| `GET /api/tree?repo=&ref=`                       | The whole file listing at a branch or tag       |
+| `GET /api/refs?repo=`                            | Branch and tag names for the two pickers        |
+| `GET /api/tag?repo=&tag=`                        | A tag's release notes, or its commit            |
+| `GET /api/file?repo=&path=&ref=`                 | One file's text (inlined up to 1 MB)            |
+| `GET /api/raw?repo=&path=&ref=`                  | One file's bytes, streamed for media/download   |
 | `GET /api/activity?repo=&since=&until=`          | Daily commit counts                             |
 | `GET /api/track?repo=&number=&kind=`             | One pull request or issue with its timeline     |
 | `GET /api/items?repo=&state=&limit=`             | Pull requests and issues, newest activity first |

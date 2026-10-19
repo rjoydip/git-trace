@@ -69,14 +69,14 @@ export function setPrefs(next: Partial<Prefs>): void {
   for (const listener of listeners) listener();
 }
 
-export function subscribePrefs(listener: () => void): () => void {
+function subscribePrefs(listener: () => void): () => void {
   listeners.add(listener);
   return () => {
     listeners.delete(listener);
   };
 }
 
-export const prefsSnapshot = (): Prefs => state;
+const prefsSnapshot = (): Prefs => state;
 
 export function usePrefs(): Prefs {
   return useSyncExternalStore(subscribePrefs, prefsSnapshot, prefsSnapshot);

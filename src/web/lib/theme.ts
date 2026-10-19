@@ -34,7 +34,7 @@ export const ACCENTS: Accent[] = [
   { id: "slate", name: "Slate", base: "#475569" },
 ];
 
-export const DEFAULT_ACCENT = ACCENTS[0] as Accent;
+const DEFAULT_ACCENT = ACCENTS[0] as Accent;
 
 const THEME_KEY = "git-trace:theme";
 const ACCENT_KEY = "git-trace:accent";
@@ -85,7 +85,7 @@ function emit(next: Appearance): void {
 const THEME_COLORS: Record<ThemeMode, string> = { dark: "#09090b", light: "#fafafa" };
 
 /** Writes the current appearance onto `<html>` and the browser chrome. */
-export function applyAppearance(appearance: Appearance = state): void {
+function applyAppearance(appearance: Appearance = state): void {
   const root = document.documentElement;
   const light = appearance.mode === "light";
   root.classList.toggle("light", light);
@@ -115,14 +115,14 @@ export function setAccent(base: string): void {
   emit(next);
 }
 
-export function subscribeAppearance(listener: () => void): () => void {
+function subscribeAppearance(listener: () => void): () => void {
   listeners.add(listener);
   return () => {
     listeners.delete(listener);
   };
 }
 
-export const appearanceSnapshot = (): Appearance => state;
+const appearanceSnapshot = (): Appearance => state;
 
 export function useAppearance(): Appearance {
   return useSyncExternalStore(subscribeAppearance, appearanceSnapshot, appearanceSnapshot);

@@ -12,14 +12,14 @@ import { useState } from "react";
 import { Check, Code2, Copy, Eye } from "lucide-react";
 import { cn } from "@/lib/utils";
 
-export type MdInline =
+type MdInline =
   | { type: "text"; text: string }
   | { type: "code"; text: string }
   | { type: "strong"; text: string }
   | { type: "em"; text: string }
   | { type: "link"; text: string; href: string };
 
-export type MdBlock =
+type MdBlock =
   | { type: "heading"; level: number; text: string }
   | { type: "paragraph"; text: string }
   | { type: "code"; lang: string; text: string }
@@ -242,8 +242,19 @@ function Blocks({ blocks }: { blocks: MdBlock[] }) {
 /**
  * Markdown prose with a rendered/raw switch and a copy-the-source action. Raw is
  * the exact text GitHub served — what a reader pastes elsewhere.
+ *
+ * `fill` stretches the reader to its parent's height and scrolls inside it; the
+ * default caps at 20rem, which is right for a comment and wrong for a file pane.
  */
-export function MarkdownBody({ text, className }: { text: string; className?: string }) {
+export function MarkdownBody({
+  text,
+  className,
+  fill = false,
+}: {
+  text: string;
+  className?: string;
+  fill?: boolean;
+}) {
   const [raw, setRaw] = useState(false);
   const [copied, setCopied] = useState(false);
   const blocks = parseMarkdown(text);
@@ -260,9 +271,13 @@ export function MarkdownBody({ text, className }: { text: string; className?: st
 
   return (
     <div
-      className={cn("space-y-2 rounded-xl border border-zinc-800/60 bg-zinc-900/40 p-3", className)}
+      className={cn(
+        "flex flex-col gap-2 rounded-xl border border-zinc-800/60 bg-zinc-900/40 p-3",
+        fill && "h-full min-h-0",
+        className,
+      )}
     >
-      <div className="flex items-center justify-between gap-2">
+      <div className="flex flex-none items-center justify-between gap-2">
         <div className="flex rounded-lg border border-zinc-800 bg-zinc-950 p-0.5">
           {[
             { id: false, label: "Rendered", icon: Eye },
@@ -297,11 +312,21 @@ export function MarkdownBody({ text, className }: { text: string; className?: st
       </div>
 
       {raw ? (
-        <pre className="max-h-80 overflow-y-auto font-mono text-[11px] leading-relaxed break-words whitespace-pre-wrap text-zinc-400">
+        <pre
+          className={cn(
+            "font-mono text-[11px] leading-relaxed break-words whitespace-pre-wrap text-zinc-400",
+            fill ? "min-h-0 flex-1 overflow-auto" : "max-h-80 overflow-y-auto",
+          )}
+        >
           {text}
         </pre>
       ) : (
-        <div className="max-h-80 space-y-2 overflow-y-auto text-xs leading-relaxed text-zinc-300">
+        <div
+          className={cn(
+            "text-xs leading-relaxed text-zinc-300",
+            fill ? "min-h-0 flex-1 space-y-2 overflow-auto" : "max-h-80 space-y-2 overflow-y-auto",
+          )}
+        >
           <Blocks blocks={blocks} />
         </div>
       )}

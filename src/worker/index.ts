@@ -3,9 +3,10 @@ import { WebStandardStreamableHTTPServerTransport } from "@modelcontextprotocol/
 import { createMcpServer } from "../mcp/server";
 import { GitHubError } from "../core/github";
 import { DEFAULT_CACHE_TTL_SECONDS } from "../core/github";
+import { isInlineMedia, mediaType } from "../core/media";
 import { TraceService, type TraceServiceOptions } from "../core/service";
 
-export interface Env {
+interface Env {
   /** Static-assets binding. Typed minimally so DOM and Workers libs don't clash. */
   ASSETS: { fetch: (request: Request) => Promise<Response> };
 }
@@ -53,6 +54,10 @@ const repoOf = (query: string | undefined): string => {
   }
   return repo;
 };
+
+/** A file name safe to drop inside a header — a quote or newline would break it. */
+const safeFileName = (path: string): string =>
+  path.slice(path.lastIndexOf("/") + 1).replace(/[^\w.\- ]/g, "_") || "file";
 
 /** Maps thrown errors to JSON responses with honest status codes. */
 const fail = (c: { json: (body: unknown, status: number) => Response }, err: unknown): Response => {
@@ -168,6 +173,70 @@ app.get("/api/diff", async (c) => {
         path,
         Number.isFinite(limit) && limit > 0 ? { limit } : {},
       ),
+    });
+  } catch (err) {
+    return fail(c, err);
+  }
+});
+
+app.get("/api/tree", async (c) => {
+  try {
+    const repo = repoOf(c.req.query("repo"));
+    const ref = c.req.query("ref");
+    return c.json(await serviceFor(c).tree(repo, ref ? { ref } : {}));
+  } catch (err) {
+    return fail(c, err);
+  }
+});
+
+app.get("/api/refs", async (c) => {
+  try {
+    const repo = repoOf(c.req.query("repo"));
+    return c.json(await serviceFor(c).refs(repo));
+  } catch (err) {
+    return fail(c, err);
+  }
+});
+
+app.get("/api/tag", async (c) => {
+  try {
+    const repo = repoOf(c.req.query("repo"));
+    const tag = c.req.query("tag");
+    if (!tag) throw new GitHubError(400, "tag is required");
+    return c.json(await serviceFor(c).tag(repo, tag));
+  } catch (err) {
+    return fail(c, err);
+  }
+});
+
+app.get("/api/file", async (c) => {
+  try {
+    const repo = repoOf(c.req.query("repo"));
+    const path = c.req.query("path");
+    if (!path) throw new GitHubError(400, "path is required");
+    return c.json(await serviceFor(c).file(repo, path, c.req.query("ref")));
+  } catch (err) {
+    return fail(c, err);
+  }
+});
+
+app.get("/api/raw", async (c) => {
+  try {
+    const repo = repoOf(c.req.query("repo"));
+    const path = c.req.query("path");
+    if (!path) throw new GitHubError(400, "path is required");
+    const upstream = await serviceFor(c).raw(repo, path, c.req.query("ref"));
+    const type = mediaType(path);
+    return new Response(upstream.body, {
+      headers: {
+        "content-type": type,
+        // Media renders in place; anything else downloads, so a repository's
+        // HTML can never execute on this origin even if opened directly.
+        "content-disposition": `${isInlineMedia(type) ? "inline" : "attachment"}; filename="${safeFileName(path)}"`,
+        "x-content-type-options": "nosniff",
+        // Private: the browser may cache it, shared caches may not.
+        "cache-control": `private, max-age=${cacheTtl(c)}`,
+      },
     });
   } catch (err) {
     return fail(c, err);

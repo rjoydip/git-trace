@@ -309,7 +309,7 @@ export function RepoSummaryCard({ meta, stats }: { meta: RepoSummary; stats: Tra
 }
 
 /** Serializes the loaded trace into a compact digest an agent can consume. */
-export function buildContextPrompt(input: {
+function buildContextPrompt(input: {
   meta: RepoSummary;
   stats: TraceStats;
   contributors: AuthorRollup[];
@@ -351,7 +351,7 @@ export function PromptExportCard({
   return (
     <Card className="bg-gradient-to-br from-indigo-950/20 via-zinc-900/60 to-zinc-950">
       <h4 className="flex items-center gap-2 text-xs font-semibold text-zinc-200">
-        <Sparkles className="size-4 text-cyan-400" /> Zero-Token Prompt Generator
+        <Sparkles className="size-4 text-indigo-400" /> Zero-Token Prompt Generator
       </h4>
       <p className="text-xs leading-relaxed text-zinc-400">
         Export a formatted digest of this repository's history, optimised for an agent's context
@@ -450,7 +450,7 @@ export function CommitTimeline({
       <div className="flex flex-wrap items-center justify-between gap-3 border-b border-zinc-800 pb-4">
         <div>
           <h3 className="flex items-center gap-2 text-sm font-semibold text-zinc-100">
-            <Layers className="size-4 text-cyan-400" /> Chronological
+            <Layers className="size-4 text-indigo-400" /> Chronological
           </h3>
           <p className="mt-0.5 text-xs text-zinc-400">
             Author, timestamp and message for the most recent commits
@@ -670,7 +670,7 @@ export function ContributorsStage({
         <div className="flex items-center justify-between border-b border-zinc-800 pb-4">
           <div>
             <h3 className="flex items-center gap-2 text-sm font-semibold text-zinc-100">
-              <Users className="size-4 text-cyan-400" /> Contributor Inspector
+              <Users className="size-4 text-indigo-400" /> Contributor Inspector
             </h3>
             <p className="mt-0.5 text-xs text-zinc-400">
               Pick a contributor to trace their commits
@@ -751,7 +751,7 @@ export function ContributorsStage({
       <Card className="p-6">
         <div className="flex items-center justify-between border-b border-zinc-800 pb-4">
           <div className="flex items-center gap-2">
-            <Terminal className="size-4 text-emerald-400" />
+            <Terminal className="size-4 text-indigo-400" />
             <h3 className="text-sm font-semibold text-zinc-100">Evaluated Response Output</h3>
           </div>
           <span className="font-mono text-[10px] text-zinc-500">JSON Format</span>
@@ -1194,7 +1194,7 @@ export function DocsStage({ repo }: { repo: string }) {
       <div className="space-y-6">
         <Card className="gap-4 p-6">
           <h3 className="flex items-center gap-2 text-sm font-semibold text-zinc-100">
-            <Cpu className="size-4 text-cyan-400" /> System Information
+            <Cpu className="size-4 text-indigo-400" /> System Information
           </h3>
           <div className="space-y-3 font-mono text-xs text-zinc-400">
             {rows.map(([label, value]) => (
@@ -1211,7 +1211,7 @@ export function DocsStage({ repo }: { repo: string }) {
 
         <Card className="gap-3 p-6">
           <h3 className="flex items-center gap-2 text-sm font-semibold text-zinc-100">
-            <Database className="size-4 text-emerald-400" /> Traced Surfaces
+            <Database className="size-4 text-indigo-400" /> Traced Surfaces
           </h3>
           <p className="text-xs leading-relaxed text-zinc-400">
             The dashboard, the MCP tools and the JSON API all answer from one shared
@@ -1298,7 +1298,7 @@ export function SystemSettings({ config }: { config: DeploymentConfig | null }) 
 
       <div className="flex flex-wrap items-center justify-between gap-3 border-t border-zinc-800 pt-3">
         <span className="flex items-center gap-2 text-zinc-400">
-          <Flame className="size-3.5" /> Edge cache TTL
+          <Flame className="size-3.5 text-indigo-400" /> Edge cache TTL
         </span>
         <Select
           value={String(prefs.cacheTtlSeconds)}

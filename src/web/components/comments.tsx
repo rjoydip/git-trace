@@ -67,7 +67,7 @@ export function CommentsStage({ commits }: { commits: Commit[] }) {
         <div className="flex flex-wrap items-center justify-between gap-3 border-b border-zinc-800 pb-4">
           <div>
             <h3 className="flex items-center gap-2 text-sm font-semibold text-zinc-100">
-              <MessageSquare className="size-4 text-cyan-400" /> Commit Commentary
+              <MessageSquare className="size-4 text-indigo-400" /> Commit Commentary
             </h3>
             <p className="mt-0.5 text-xs text-zinc-400">
               Every traced commit message in full — the discussion the graph only summarises

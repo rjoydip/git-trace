@@ -22,13 +22,17 @@ import type {
   Commit,
   Contributor,
   FileDiff,
+  FileContent,
   FileGraph,
   HotFile,
   ItemKind,
   ItemState,
   ItemSummary,
   RepoRef,
+  RepoRefs,
   RepoSummary,
+  RepoTree,
+  TagDetail,
   TrackedComment,
   TrackedItem,
   TrackedReview,
@@ -41,7 +45,7 @@ import type {
  * reloads; raise this (or add a KV cache for cross-PoP sharing) when the
  * dashboard needs more history than the latest N commits.
  */
-export const DETAIL_COMMIT_LIMIT = 30;
+const DETAIL_COMMIT_LIMIT = 30;
 
 export interface TraceServiceOptions {
   token?: string;
@@ -223,6 +227,49 @@ export class TraceService {
       state: opts.state ?? "open",
       perPage: clamp(opts.limit ?? 50, 1, 100),
     });
+  }
+
+  /**
+   * The repository's whole file listing at one ref. GitHub returns it in a
+   * single request; the ref is resolved first so the answer can name what it
+   * describes — the trace has usually cached that repo lookup already.
+   */
+  async tree(input: string, opts: { ref?: string } = {}): Promise<RepoTree> {
+    const ref = this.resolveRepo(input);
+    const repo = `${ref.owner}/${ref.name}`;
+    const treeish = opts.ref ?? (await this.client.getRepo(ref)).defaultBranch;
+    const { entries, truncated } = await this.client.getTree(ref, treeish);
+    return { repo, ref: treeish, entries, truncated };
+  }
+
+  /** Branch and tag names, for the file browser's ref picker. */
+  refs(input: string): Promise<RepoRefs> {
+    return this.client.getRefs(this.resolveRepo(input));
+  }
+
+  /** One tag's release notes, or the commit it points at when it has none. */
+  tag(input: string, name: string): Promise<TagDetail> {
+    const target = name.trim();
+    if (!target) throw new Error("tag is required");
+    return this.client.getTag(this.resolveRepo(input), target);
+  }
+
+  /** One file's text — fetched when a reader opens it, never with the trace. */
+  file(input: string, path: string, treeish?: string): Promise<FileContent> {
+    const target = path.trim();
+    if (!target) throw new Error("path is required");
+    return this.client.getFile(this.resolveRepo(input), target, treeish);
+  }
+
+  /**
+   * One file's bytes — what images, video and oversized files need, since the
+   * contents API only inlines text up to 1 MB. The caller owns the response
+   * headers; this returns GitHub's stream untouched.
+   */
+  raw(input: string, path: string, treeish?: string): Promise<Response> {
+    const target = path.trim();
+    if (!target) throw new Error("path is required");
+    return this.client.getRaw(this.resolveRepo(input), target, treeish);
   }
 
   private async details(input: string, limit: number) {

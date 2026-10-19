@@ -43,14 +43,14 @@ export function setToken(next: string): void {
   for (const listener of listeners) listener();
 }
 
-export function subscribeToken(listener: () => void): () => void {
+function subscribeToken(listener: () => void): () => void {
   listeners.add(listener);
   return () => {
     listeners.delete(listener);
   };
 }
 
-export const tokenSnapshot = (): string => state;
+const tokenSnapshot = (): string => state;
 
 export function useToken(): string {
   return useSyncExternalStore(subscribeToken, tokenSnapshot, tokenSnapshot);

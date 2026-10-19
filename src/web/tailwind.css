@@ -225,6 +225,29 @@ html.light {
     box-shadow: inset 0 0 20px var(--page-glow);
   }
 
+  /*
+   * @pierre/trees renders into a shadow root, so Tailwind classes cannot reach
+   * its rows. Custom properties do inherit across that boundary, and these point
+   * at the theme's own tokens — which is why the tree follows light mode and the
+   * chosen accent without a second palette to keep in sync.
+   *
+   * The `-override` suffix is not optional: the library's own `:host` rule
+   * declares the plain `--trees-*` names, and shadow-tree declarations win over
+   * this stylesheet for the same property.
+   */
+  .file-tree {
+    --trees-bg-override: transparent;
+    --trees-bg-muted-override: var(--color-zinc-800);
+    --trees-fg-override: var(--color-zinc-200);
+    --trees-fg-muted-override: var(--color-zinc-500);
+    --trees-border-color-override: var(--color-zinc-800);
+    --trees-accent-override: var(--color-indigo-500);
+    --trees-border-radius-override: 0.5rem;
+    --trees-input-bg-override: var(--color-zinc-900);
+    --trees-font-family-override: var(--font-sans);
+    --trees-font-size-override: 12px;
+  }
+
   /* A gradient that always lands on the chosen accent. */
   .accent-gradient {
     background-image: linear-gradient(135deg, var(--brand-from), var(--brand-to));
@@ -259,12 +282,6 @@ html.light {
   }
   .stagger > *:nth-child(n + 8) {
     animation-delay: 0.28s;
-  }
-
-  /* Horizontal bars grow from the left instead of appearing at full width. */
-  .grow-x {
-    transform-origin: left;
-    animation: grow-x 0.6s cubic-bezier(0.16, 1, 0.3, 1) both;
   }
 
   /* Radix overlays: the content keeps `translate: -50% -50%` for centring, so
@@ -335,19 +352,10 @@ html.light {
     scale: 1;
   }
 }
-@keyframes grow-x {
-  from {
-    transform: scaleX(0);
-  }
-  to {
-    transform: scaleX(1);
-  }
-}
 
 @media (prefers-reduced-motion: reduce) {
   .tab-in,
   .stagger > *,
-  .grow-x,
   .dialog-pop,
   .dialog-fade,
   .select-pop {

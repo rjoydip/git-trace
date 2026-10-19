@@ -1,5 +1,6 @@
 name = "git-trace"
-main = "dist/worker/index.js"
+# The Worker is not a build artifact: wrangler bundles this entry itself.
+main = "src/worker/index.ts"
 compatibility_date = "2025-07-18"
 compatibility_flags = ["nodejs_compat"]
 

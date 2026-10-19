@@ -5,10 +5,14 @@ import type { FileTouch } from "../core/trace";
 import type { TracePayload } from "../core/service";
 import type {
   Commit,
+  FileContent,
   FileDiff,
   ItemKind,
   ItemState,
   ItemSummary,
+  RepoRefs,
+  RepoTree,
+  TagDetail,
   TrackedItem,
 } from "../core/types";
 
@@ -117,6 +121,44 @@ export function probe<T>(url: string): Promise<T> {
   return getJson<T>(url);
 }
 
+/** A repository's whole file listing — one request, at its default branch. */
+export function loadTree(repo: string, ref?: string): Promise<RepoTree> {
+  const params = new URLSearchParams({ repo });
+  if (ref) params.set("ref", ref);
+  return getJson<RepoTree>(`/api/tree?${params.toString()}`);
+}
+
+/** Branch and tag names, for the ref picker. */
+export function loadRefs(repo: string): Promise<RepoRefs> {
+  return getJson<RepoRefs>(`/api/refs?repo=${encodeURIComponent(repo)}`);
+}
+
+/** One tag's release notes, or the commit it points at when it has none. */
+export function loadTag(repo: string, tag: string): Promise<TagDetail> {
+  const params = new URLSearchParams({ repo, tag });
+  return getJson<TagDetail>(`/api/tag?${params.toString()}`);
+}
+
+/** One file's text, fetched only when the reader opens it. */
+export function loadFile(repo: string, path: string, ref?: string): Promise<FileContent> {
+  const params = new URLSearchParams({ repo, path });
+  if (ref) params.set("ref", ref);
+  return getJson<FileContent>(`/api/file?${params.toString()}`);
+}
+
+/**
+ * One file's bytes — for images, video and downloads. The token has to travel
+ * as a header, so this cannot be a plain `src` attribute; callers get a Blob and
+ * hand back an object URL.
+ */
+export async function loadRaw(repo: string, path: string, ref?: string): Promise<Blob> {
+  const params = new URLSearchParams({ repo, path });
+  if (ref) params.set("ref", ref);
+  const res = await fetch(`/api/raw?${params.toString()}`, { headers: prefHeaders() });
+  if (!res.ok) throw new ApiError(`Request failed (${res.status})`, res.status);
+  return res.blob();
+}
+
 /** One pull request or issue, with its commits, reviews and comments merged. */
 export function loadTrack(repo: string, number: number, kind: ItemKind): Promise<TrackedItem> {
   return getJson<TrackedItem>(
@@ -191,7 +233,7 @@ async function getJson<T>(url: string): Promise<T> {
 
 /* ---------------------------------------------------------------------- MCP */
 
-export interface McpCallResult {
+interface McpCallResult {
   ok: boolean;
   status: string;
   latency: number;
@@ -307,7 +349,7 @@ export async function callMcpTool(
   };
 }
 
-export interface McpToolList {
+interface McpToolList {
   ok: boolean;
   status: string;
   latency: number;

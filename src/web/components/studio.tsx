@@ -129,7 +129,7 @@ export function SimulatorStudio({ repo }: { repo: string }) {
         <div className="flex items-center justify-between border-b border-zinc-800 pb-4">
           <div>
             <h3 className="flex items-center gap-2 text-sm font-semibold text-zinc-100">
-              <Zap className="size-4 text-cyan-400" /> Interactive MCP Generator
+              <Zap className="size-4 text-indigo-400" /> Interactive MCP Generator
             </h3>
             <p className="mt-0.5 text-xs text-zinc-400">
               Fire a real tools/call at this deployment's MCP endpoint
@@ -231,7 +231,7 @@ export function SimulatorStudio({ repo }: { repo: string }) {
       <Card className="gap-4 p-6">
         <div className="flex items-center justify-between border-b border-zinc-800 pb-4">
           <div className="flex items-center gap-2">
-            <Terminal className="size-4 text-emerald-400" />
+            <Terminal className="size-4 text-indigo-400" />
             <h3 className="text-sm font-semibold text-zinc-100">Evaluated Response Output</h3>
           </div>
           <span className="font-mono text-[10px] text-zinc-500">JSON Format</span>

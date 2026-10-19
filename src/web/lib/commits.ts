@@ -7,7 +7,7 @@ import type { Commit } from "../../core/types";
 
 export type CommitOrder = "newest" | "oldest";
 
-export interface CommitFilters {
+interface CommitFilters {
   author: string;
   query: string;
   order: CommitOrder;

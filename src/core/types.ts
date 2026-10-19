@@ -4,7 +4,7 @@ export interface RepoRef {
   name: string;
 }
 
-export interface GitAuthor {
+interface GitAuthor {
   name: string;
   email: string;
   login?: string;
@@ -22,7 +22,7 @@ export interface Commit {
   parents: string[];
 }
 
-export type FileStatus = "added" | "modified" | "removed" | "renamed";
+type FileStatus = "added" | "modified" | "removed" | "renamed";
 
 export interface FileChange {
   filename: string;
@@ -118,7 +118,7 @@ export interface ItemActor {
   avatar: string | null;
 }
 
-export interface ItemLabel {
+interface ItemLabel {
   name: string;
   color: string;
 }
@@ -140,7 +140,7 @@ export interface TrackedReview {
   url: string;
 }
 
-export type ActivityKind = "commit" | "comment" | "review";
+type ActivityKind = "commit" | "comment" | "review";
 
 /** One entry in a pull request's or issue's history, flattened for display. */
 export interface TrackedActivity {
@@ -197,4 +197,57 @@ export interface TrackedItem {
   commitCount: number;
   /** Commits, review verdicts and comments, newest first. */
   activity: TrackedActivity[];
+}
+
+/** One entry in a repository's recursive file listing. */
+export interface TreeEntry {
+  path: string;
+  type: "blob" | "tree";
+  size: number;
+  sha: string;
+}
+
+/** A repository's whole file listing at one ref. */
+export interface RepoTree {
+  repo: string;
+  /** The ref the listing was taken at — the default branch, unless overridden. */
+  ref: string;
+  entries: TreeEntry[];
+  /** GitHub caps the recursive listing; a truncated tree is still usable. */
+  truncated: boolean;
+}
+
+/** Branch and tag names, for the file browser's ref picker. */
+export interface RepoRefs {
+  defaultBranch: string;
+  branches: string[];
+  tags: string[];
+}
+
+/** A tag, enriched with its release notes when one is published. */
+export interface TagDetail {
+  repo: string;
+  tag: string;
+  /** `release` when GitHub has published notes for this tag, else the commit it points at. */
+  kind: "release" | "commit";
+  /** The release title, or the commit's first line for a bare tag. */
+  title: string;
+  body: string | null;
+  author: string | null;
+  publishedAt: string | null;
+  url: string;
+  prerelease: boolean;
+  sha: string | null;
+}
+
+/** One file's text, or the reason GitHub would not inline it. */
+export interface FileContent {
+  repo: string;
+  path: string;
+  sha: string;
+  size: number;
+  /** null when the file is binary, or larger than GitHub inlines (1 MB). */
+  text: string | null;
+  /** The file on GitHub, for reading something too big to render here. */
+  url: string;
 }

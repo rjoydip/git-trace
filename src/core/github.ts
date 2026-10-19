@@ -3,15 +3,19 @@ import type {
   CommitDetail,
   Contributor,
   FileChange,
+  FileContent,
   ItemActor,
   ItemKind,
   ItemState,
   ItemSummary,
   RepoRef,
+  RepoRefs,
   RepoSummary,
+  TagDetail,
   TrackedComment,
   TrackedItem,
   TrackedReview,
+  TreeEntry,
 } from "./types";
 
 export class GitHubError extends Error {
@@ -63,6 +67,15 @@ export function parseRepo(input: string): RepoRef {
   return { owner: match[1], name: match[2] };
 }
 
+/** Encodes each path segment but keeps the separators, so nested paths resolve. */
+function encodePath(path: string): string {
+  return path
+    .split("/")
+    .filter((segment) => segment !== "")
+    .map(encodeURIComponent)
+    .join("/");
+}
+
 /** Short, non-reversible tag for a token. Cache-key discrimination only. */
 async function hashToken(token: string): Promise<string> {
   const digest = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(token));
@@ -81,7 +94,7 @@ export interface ListCommitsOptions {
   sha?: string;
 }
 
-export interface ListItemsOptions {
+interface ListItemsOptions {
   state?: ItemState;
   perPage?: number;
 }
@@ -112,24 +125,8 @@ export class GitHubClient {
       if (hit) return (await hit.json()) as T;
     }
 
-    const headers: Record<string, string> = {
-      accept: "application/vnd.github+json",
-      "user-agent": "git-trace",
-      "x-github-api-version": "2022-11-28",
-    };
-    if (this.options.token) headers.authorization = `Bearer ${this.options.token}`;
-
-    const res = await fetch(url, { headers });
-    if (!res.ok) {
-      const body = (await res.json().catch(() => null)) as { message?: string } | null;
-      const message = body?.message ?? `GitHub API ${res.status}`;
-      // Turn the opaque rate-limit failure into the action that fixes it.
-      const hint =
-        (res.status === 403 || res.status === 429) && /rate limit/i.test(message)
-          ? " — add a personal access token in Settings to raise the limit from 60 to 5000 requests/hour."
-          : "";
-      throw new GitHubError(res.status, message + hint);
-    }
+    const res = await fetch(url, { headers: this.headers("application/vnd.github+json") });
+    if (!res.ok) await this.failFor(res);
     const data = (await res.json()) as T;
 
     if (cache) {
@@ -142,6 +139,53 @@ export class GitHubClient {
       await cache.put(key, cached).catch(() => undefined);
     }
     return data;
+  }
+
+  /**
+   * One file's bytes, streamed rather than decoded — how images, video and
+   * anything past the 1 MB inline limit reach the dashboard. Shares the edge
+   * cache with `get`, so a re-render costs no GitHub request.
+   */
+  async getRaw(ref: RepoRef, path: string, treeish?: string): Promise<Response> {
+    const target = encodePath(path);
+    if (!target) throw new GitHubError(400, "path is required");
+    const at = treeish ? `?ref=${encodeURIComponent(treeish)}` : "";
+    const url = `${this.baseUrl}/repos/${ref.owner}/${ref.name}/contents/${target}${at}`;
+    // `?__raw=1` keeps the byte cache separate from the JSON cache for the same path.
+    const cache = this.cacheTtl > 0 ? edgeCache() : undefined;
+    const key = cache ? await this.cacheKey(`${url}${at ? "&" : "?"}__raw=1`) : url;
+    if (cache) {
+      const hit = await cache.match(key).catch(() => undefined);
+      if (hit) return hit;
+    }
+
+    const res = await fetch(url, { headers: this.headers("application/vnd.github.raw+json") });
+    if (!res.ok) await this.failFor(res);
+    // Clone first: the caller streams the original while the cache takes the copy.
+    if (cache && res.status === 200) await cache.put(key, res.clone()).catch(() => undefined);
+    return res;
+  }
+
+  /** Request headers for the GitHub REST API, with the caller's token if any. */
+  private headers(accept: string): Record<string, string> {
+    const headers: Record<string, string> = {
+      accept,
+      "user-agent": "git-trace",
+      "x-github-api-version": "2022-11-28",
+    };
+    if (this.options.token) headers.authorization = `Bearer ${this.options.token}`;
+    return headers;
+  }
+
+  /** Throws the failure, turning an opaque rate limit into the action that fixes it. */
+  private async failFor(res: Response): Promise<never> {
+    const body = (await res.json().catch(() => null)) as { message?: string } | null;
+    const message = body?.message ?? `GitHub API ${res.status}`;
+    const hint =
+      (res.status === 403 || res.status === 429) && /rate limit/i.test(message)
+        ? " — add a personal access token in Settings to raise the limit from 60 to 5000 requests/hour."
+        : "";
+    throw new GitHubError(res.status, message + hint);
   }
 
   /**
@@ -264,6 +308,127 @@ export class GitHubClient {
     });
     const raw = await this.get<RawIssue[]>(`/repos/${ref.owner}/${ref.name}/issues?${params}`);
     return raw.map(toItemSummary);
+  }
+
+  /* ------------------------------------------------------------ files */
+
+  /**
+   * Every path in the repository at one ref, in a single request. `HEAD`
+   * resolves to the default branch server-side; the file browser passes a branch
+   * or tag name once the reader picks one.
+   */
+  async getTree(
+    ref: RepoRef,
+    treeish = "HEAD",
+  ): Promise<{ entries: TreeEntry[]; truncated: boolean }> {
+    const raw = await this.get<RawTree>(
+      `/repos/${ref.owner}/${ref.name}/git/trees/${encodeURIComponent(treeish)}?recursive=1`,
+    );
+    return {
+      // Submodule ("commit") entries have no readable path — drop them.
+      entries: raw.tree
+        .filter((entry) => entry.type === "blob" || entry.type === "tree")
+        .map((entry) => ({
+          path: entry.path,
+          type: entry.type === "tree" ? ("tree" as const) : ("blob" as const),
+          size: entry.size ?? 0,
+          sha: entry.sha,
+        })),
+      truncated: Boolean(raw.truncated),
+    };
+  }
+
+  /** Branch and tag names for the ref picker. Both lists come back alphabetical. */
+  async getRefs(ref: RepoRef): Promise<RepoRefs> {
+    const [repo, branches, tags] = await Promise.all([
+      this.getRepo(ref),
+      this.get<RawNamed[]>(`/repos/${ref.owner}/${ref.name}/branches?per_page=100`),
+      this.get<RawNamed[]>(`/repos/${ref.owner}/${ref.name}/tags?per_page=100`),
+    ]);
+    return {
+      defaultBranch: repo.defaultBranch,
+      branches: branches.map((entry) => entry.name),
+      tags: tags.map((entry) => entry.name),
+    };
+  }
+
+  /**
+   * A tag with its release notes when one is published. Most tags are bare git
+   * refs, so a missing release is not an error: the commit they point at is the
+   * only detail GitHub has.
+   */
+  async getTag(ref: RepoRef, tag: string): Promise<TagDetail> {
+    const name = tag.trim();
+    if (!name) throw new GitHubError(400, "tag is required");
+    const repo = `${ref.owner}/${ref.name}`;
+    const encoded = encodeURIComponent(name);
+
+    let release: RawRelease | null = null;
+    try {
+      release = await this.get<RawRelease>(`/repos/${repo}/releases/tags/${encoded}`);
+    } catch (err) {
+      if (!(err instanceof GitHubError) || err.status !== 404) throw err;
+    }
+
+    if (release) {
+      return {
+        repo,
+        tag: name,
+        kind: "release",
+        title: release.name || name,
+        body: release.body,
+        author: release.author?.login ?? null,
+        publishedAt: release.published_at ?? release.created_at,
+        url: release.html_url,
+        prerelease: Boolean(release.prerelease),
+        sha: null,
+      };
+    }
+
+    const commit = await this.get<RawCommit>(`/repos/${repo}/commits/${encoded}`).catch(
+      (err: unknown) => {
+        // 422 is what GitHub returns for a ref that is neither a tag, branch nor sha.
+        if (err instanceof GitHubError && (err.status === 404 || err.status === 422)) {
+          throw new GitHubError(404, `No tag or commit named "${name}"`);
+        }
+        throw err;
+      },
+    );
+    return {
+      repo,
+      tag: name,
+      kind: "commit",
+      title: commit.commit.message.split("\n")[0] || name,
+      body: commit.commit.message,
+      author: commit.author?.login ?? commit.commit.author?.name ?? null,
+      publishedAt: commit.commit.author?.date ?? null,
+      url: commit.html_url,
+      prerelease: false,
+      sha: commit.sha,
+    };
+  }
+
+  /** One file's text. GitHub inlines up to 1 MB; beyond that, or for binary, text is null. */
+  async getFile(ref: RepoRef, path: string, treeish?: string): Promise<FileContent> {
+    const encoded = encodePath(path);
+    if (!encoded) throw new GitHubError(400, "path is required");
+    const at = treeish ? `?ref=${encodeURIComponent(treeish)}` : "";
+    const raw = await this.get<RawContent | RawContent[]>(
+      `/repos/${ref.owner}/${ref.name}/contents/${encoded}${at}`,
+    );
+    if (Array.isArray(raw)) {
+      throw new GitHubError(400, `"${path}" is a directory, not a file`);
+    }
+    return {
+      repo: `${ref.owner}/${ref.name}`,
+      path: raw.path,
+      sha: raw.sha,
+      size: raw.size,
+      text: decodeContent(raw),
+      url:
+        raw.html_url ??
+        `https://github.com/${ref.owner}/${ref.name}/blob/${treeish ?? "HEAD"}/${encoded}`,
+    };
   }
 }
 
@@ -480,4 +645,57 @@ function toTrackedItem(
     commitCount: raw.commits ?? 0,
     activity: [],
   };
+}
+
+/* --------------------------------------------------------------- files */
+
+interface RawTree {
+  sha: string;
+  truncated?: boolean;
+  tree: Array<{ path: string; mode: string; type: string; size?: number; sha: string }>;
+}
+
+/** A branch or tag: both endpoints return a name and the commit they point at. */
+interface RawNamed {
+  name: string;
+}
+
+/** A published release. `releases/tags/{tag}` 404s for tags without one. */
+interface RawRelease {
+  name: string | null;
+  body: string | null;
+  html_url: string;
+  prerelease: boolean;
+  draft?: boolean;
+  created_at: string;
+  published_at: string | null;
+  author: RawActor | null;
+}
+
+interface RawContent {
+  type?: string;
+  path: string;
+  sha: string;
+  size: number;
+  encoding?: string;
+  content?: string;
+  html_url?: string | null;
+}
+
+/**
+ * GitHub's contents API inlines a file as base64. Decode it to text, or return
+ * null when it is not inlined (directory, >1 MB) or is not really text —
+ * binary files come back as base64 too, and decoding one would fill the reader
+ * with replacement characters instead of saying so.
+ */
+function decodeContent(raw: RawContent): string | null {
+  if (raw.encoding !== "base64" || !raw.content) return null;
+  try {
+    const binary = atob(raw.content.replace(/\s/g, ""));
+    const bytes = Uint8Array.from(binary, (char) => char.charCodeAt(0));
+    const text = new TextDecoder("utf-8", { fatal: false }).decode(bytes);
+    return text.includes("\u0000") ? null : text;
+  } catch {
+    return null;
+  }
 }

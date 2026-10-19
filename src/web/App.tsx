@@ -1,9 +1,10 @@
-import { useCallback, useEffect, useState } from "react";
+import { lazy, Suspense, useCallback, useEffect, useState } from "react";
 import {
   AlertCircle,
   BookOpen,
   Copy,
   Flame,
+  FolderTree,
   Gauge,
   GitPullRequest,
   Layers,
@@ -42,6 +43,14 @@ import {
 import { SimulatorStudio, TelemetryStream, TestMatrix } from "@/components/studio";
 import { TrackStage } from "@/components/track";
 import { CommentsStage } from "@/components/comments";
+
+/**
+ * The file browser carries the tree view and every syntax grammar, so it is
+ * split into its own chunk: readers who never open the tab never download it.
+ */
+const FilesStage = lazy(() =>
+  import("@/components/files").then((module) => ({ default: module.FilesStage })),
+);
 import { GitTraceMark } from "@/components/brand";
 import { AppearanceSettings, ThemeToggle } from "@/components/theme-controls";
 import {
@@ -82,18 +91,22 @@ function pushRecent(list: string[], repo: string): string[] {
   return next;
 }
 
-/** Short labels keep all ten tabs on the header's single line. */
+/**
+ * One hue per tab, so the strip is scannable at a glance. The hue stays put when
+ * the tab is selected: only the label brightens, the icon keeps its own colour.
+ */
 const TABS = [
-  { id: "overview", label: "Overview", icon: Gauge },
-  { id: "history", label: "Commits", icon: Layers },
-  { id: "comments", label: "Comments", icon: MessageSquare },
-  { id: "track", label: "PR / Issue", icon: GitPullRequest },
-  { id: "contributors", label: "Contributors", icon: Users },
-  { id: "hot-files", label: "Hot Files", icon: Flame },
-  { id: "simulator", label: "Simulator", icon: Zap },
-  { id: "telemetry", label: "Telemetry", icon: Terminal },
-  { id: "tests", label: "Tests", icon: RefreshCw },
-  { id: "docs", label: "Docs", icon: BookOpen },
+  { id: "overview", label: "Overview", icon: Gauge, tone: "text-sky-400" },
+  { id: "history", label: "Commits", icon: Layers, tone: "text-emerald-400" },
+  { id: "comments", label: "Comments", icon: MessageSquare, tone: "text-cyan-400" },
+  { id: "track", label: "PR / Issue", icon: GitPullRequest, tone: "text-violet-400" },
+  { id: "contributors", label: "Contributors", icon: Users, tone: "text-amber-400" },
+  { id: "hot-files", label: "Hot Files", icon: Flame, tone: "text-orange-400" },
+  { id: "files", label: "Files", icon: FolderTree, tone: "text-teal-400" },
+  { id: "simulator", label: "Simulator", icon: Zap, tone: "text-yellow-400" },
+  { id: "telemetry", label: "Telemetry", icon: Terminal, tone: "text-lime-400" },
+  { id: "tests", label: "Tests", icon: RefreshCw, tone: "text-rose-400" },
+  { id: "docs", label: "Docs", icon: BookOpen, tone: "text-purple-400" },
 ] as const;
 
 interface ShellError {
@@ -183,7 +196,7 @@ export function App() {
       <header className="sticky top-0 z-40 border-b border-zinc-800/80 bg-zinc-950/80 backdrop-blur-xl">
         {/* Phone: brand and actions share row one, the tabs scroll on row two.
             Desktop: one row, tabs scroll between the brand and the actions. */}
-        <div className="mx-auto flex max-w-7xl flex-wrap items-center gap-x-4 gap-y-2 px-4 py-2.5 lg:flex-nowrap lg:px-8 lg:py-3">
+        <div className="mx-auto flex max-w-8xl flex-wrap items-center gap-x-4 gap-y-2 px-4 py-2.5 lg:flex-nowrap lg:px-8 lg:py-3">
           <div className="flex shrink-0 items-center gap-2.5">
             <div className="group relative">
               <div className="absolute -inset-0.5 rounded-xl bg-gradient-to-br from-indigo-500 to-indigo-300 opacity-60 blur transition duration-300 group-hover:opacity-90" />
@@ -248,7 +261,7 @@ export function App() {
             <TabsList>
               {TABS.map((t) => (
                 <TabsTrigger key={t.id} value={t.id} title={t.label}>
-                  <t.icon />
+                  <t.icon className={t.tone} />
                   {t.label}
                 </TabsTrigger>
               ))}
@@ -257,7 +270,7 @@ export function App() {
         </div>
       </header>
 
-      <main className="mx-auto w-full max-w-7xl flex-1 space-y-6 px-4 py-6 lg:space-y-8 lg:px-8 lg:py-8">
+      <main className="mx-auto w-full max-w-8xl flex-1 space-y-6 px-4 py-6 lg:space-y-8 lg:px-8 lg:py-8">
         {error &&
           (emptyRepo ? (
             <Card className="gap-2 p-5">
@@ -385,6 +398,15 @@ export function App() {
           ) : (
             <EmptyPanel message="Name a repository on the Overview tab to rank its files by churn." />
           )}
+        </TabsContent>
+
+        <TabsContent value="files">
+          <Suspense fallback={<Skeleton className="h-[68vh] rounded-2xl" />}>
+            {/* Keyed by repo: the tree, the ref picker and the open file are all
+                per-repository state, and a remount is cheaper than resetting
+                each of them by hand. */}
+            <FilesStage key={activeRepo} repo={activeRepo} />
+          </Suspense>
         </TabsContent>
 
         <TabsContent value="simulator">
