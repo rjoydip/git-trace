@@ -6,10 +6,10 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "dev:worker": "wrangler dev --port 8787 --assets ./src/web/public",
+    "dev:worker": "wrangler dev --port 8787",
     "build": "bun run build:web && bun run build:worker",
     "build:web": "vite build",
-    "build:worker": "wrangler deploy --dry-run --outdir=dist/wrangler-dry-run",
+    "build:worker": "vite build --config config/vite.worker.ts",
     "preview": "vite preview",
     "deploy": "wrangler deploy",
     "typecheck": "tsc --noEmit",
