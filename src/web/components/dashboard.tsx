@@ -84,6 +84,7 @@ export const MCP_TOOLS = [
   ["trace_hot_files", "Rank files by churn (additions + deletions) across the recent commits."],
   ["trace_file_history", "Trace one file's history: which commits touched it, with diff stats."],
   ["trace_activity", "Commit activity per calendar day over a window — the repository's pulse."],
+  ["trace_items", "List pull requests and issues, newest activity first."],
   [
     "trace_pull_request",
     "One pull request: state, size, labels, review verdicts, commits, discussion.",
@@ -1185,8 +1186,9 @@ export function DocsStage({ repo }: { repo: string }) {
             ))}
           </div>
           <p className="font-mono text-[11px] text-zinc-500">
-            Resource: <span className="text-cyan-400">git-trace://repository/summary</span> ·
-            Prompt: <span className="text-cyan-400">history-review</span>
+            Resource:{" "}
+            <span className="text-cyan-400">{"git-trace://repository/{owner}/{name}/summary"}</span>{" "}
+            · Prompt: <span className="text-cyan-400">history-review</span>
           </p>
         </div>
       </Card>

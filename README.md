@@ -236,10 +236,14 @@ Tools:
 | `trace_activity`     | Commits per calendar day over a window                      |
 | `trace_pull_request` | One pull request: state, size, reviews, commits, discussion |
 | `trace_issue`        | One issue: state, labels, author, body, comment thread      |
+| `trace_items`        | List pull requests and issues, newest activity first        |
 
-Resource: `git-trace://repository/summary`. Prompt: `history-review`.
+Resource: `git-trace://repository/{owner}/{name}/summary`. Prompt: `history-review`.
 
 Every tool requires `repo` (`"owner/name"` or a GitHub URL) — there is no server-side default.
+
+An agent skill with cost, window and output guidance lives in
+`.agents/skills/git-trace/SKILL.md`.
 
 ## JSON API
 
