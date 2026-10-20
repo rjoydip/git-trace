@@ -116,9 +116,9 @@ export class GitHubClient {
    * — reloads then cost zero GitHub requests. Errors are never cached, so a
    * rate-limited response cannot get stuck in the cache.
    */
-  private async get<T>(path: string): Promise<T> {
+  private async get<T>(path: string, useCache = true): Promise<T> {
     const url = `${this.baseUrl}${path}`;
-    const cache = this.cacheTtl > 0 ? edgeCache() : undefined;
+    const cache = useCache && this.cacheTtl > 0 ? edgeCache() : undefined;
     const key = cache ? await this.cacheKey(url) : url;
     if (cache) {
       const hit = await cache.match(key).catch(() => undefined);
@@ -139,6 +139,28 @@ export class GitHubClient {
       await cache.put(key, cached).catch(() => undefined);
     }
     return data;
+  }
+
+  /**
+   * Cache an assembled value rather than a single HTTP response. On the Free
+   * plan `match`/`put` share the 50-subrequest budget with `fetch`, so folding
+   * 30 commit details into one entry costs two cache calls instead of ninety.
+   */
+  async cached<T>(key: string, produce: () => Promise<T>): Promise<T> {
+    const cache = this.cacheTtl > 0 ? edgeCache() : undefined;
+    if (!cache) return produce();
+    const cacheKey = await this.cacheKey(`https://git-trace.invalid/${encodeURIComponent(key)}`);
+    const hit = await cache.match(cacheKey).catch(() => undefined);
+    if (hit) return (await hit.json()) as T;
+    const value = await produce();
+    const body = new Response(JSON.stringify(value), {
+      headers: {
+        "content-type": "application/json",
+        "cache-control": `public, max-age=${this.cacheTtl}`,
+      },
+    });
+    await cache.put(cacheKey, body).catch(() => undefined);
+    return value;
   }
 
   /**
@@ -217,7 +239,10 @@ export class GitHubClient {
   }
 
   getCommit(ref: RepoRef, sha: string): Promise<CommitDetail> {
-    return this.get<RawCommitDetail>(`/repos/${ref.owner}/${ref.name}/commits/${sha}`).then(
+    // Uncached: `TraceService` fetches details in bulk and caches the whole
+    // batch as one entry, because per-commit entries would cost 3 subrequests
+    // each on the Free plan.
+    return this.get<RawCommitDetail>(`/repos/${ref.owner}/${ref.name}/commits/${sha}`, false).then(
       (raw) => ({
         ...toCommit(raw),
         files: (raw.files ?? []).map(toFileChange),

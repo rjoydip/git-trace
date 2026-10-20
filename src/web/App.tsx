@@ -7,12 +7,14 @@ import {
   FolderTree,
   Gauge,
   GitPullRequest,
+  Info,
   Layers,
   MessageSquare,
   RefreshCw,
   Settings,
   Terminal,
   Users,
+  X,
   Zap,
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
@@ -65,6 +67,9 @@ import { cn } from "@/lib/utils";
 import type { FileGraph, HotFile } from "../core/types";
 
 const RECENT_KEY = "git-trace:recent";
+const LIMITS_TOAST_KEY = "git-trace:limits-toast";
+const LIMITS_URL = "https://developers.cloudflare.com/workers/wrangler/configuration/#limits";
+const LIMITS_TOAST_MS = 12_000;
 
 /** Stable identity: a fresh literal each render would reset the graph's camera. */
 const EMPTY_GRAPH: FileGraph = { nodes: [], links: [] };
@@ -127,6 +132,13 @@ export function App() {
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [inspect, setInspect] = useState<{ title: string; payload: unknown } | null>(null);
   const [recent, setRecent] = useState<string[]>(() => readRecent());
+  const [showLimits, setShowLimits] = useState(() => {
+    try {
+      return window.sessionStorage.getItem(LIMITS_TOAST_KEY) !== "1";
+    } catch {
+      return true;
+    }
+  });
 
   const activeRepo = repo || target;
   const emptyRepo = error?.status === 409;
@@ -154,6 +166,15 @@ export function App() {
       });
     } finally {
       setLoading(false);
+    }
+  }, []);
+
+  const dismissLimits = useCallback(() => {
+    setShowLimits(false);
+    try {
+      window.sessionStorage.setItem(LIMITS_TOAST_KEY, "1");
+    } catch {
+      // Private mode: the notice returns next session, no harm.
     }
   }, []);
 
@@ -186,6 +207,13 @@ export function App() {
     }, 15_000);
     return () => window.clearInterval(id);
   }, [live, activeRepo]);
+
+  // Auto-close the limits notice; it is a one-time hint, not a banner to keep.
+  useEffect(() => {
+    if (!showLimits) return;
+    const id = window.setTimeout(dismissLimits, LIMITS_TOAST_MS);
+    return () => window.clearTimeout(id);
+  }, [showLimits, dismissLimits]);
 
   return (
     <Tabs
@@ -425,6 +453,43 @@ export function App() {
           <DocsStage repo={activeRepo} />
         </TabsContent>
       </main>
+
+      {/* One-shot limits hint: slides in on load, auto-dismisses, and stays gone
+          for the rest of the session. */}
+      {showLimits && (
+        <div
+          role="status"
+          aria-live="polite"
+          className="toast-in fixed right-3 bottom-3 z-50 flex w-[min(24rem,calc(100vw-1.5rem))] items-start gap-3 rounded-xl border border-sky-500/30 bg-zinc-950/95 p-3 shadow-2xl shadow-black/30 backdrop-blur-xl sm:right-5 sm:bottom-5"
+        >
+          <Info className="mt-0.5 size-4 shrink-0 text-sky-400" />
+          <div className="min-w-0 flex-1 space-y-1">
+            <p className="text-xs font-medium text-zinc-100">Traces can take a few seconds</p>
+            <p className="text-[11px] leading-relaxed text-zinc-400">
+              GitTrace fans out to the GitHub API on every cache miss and runs on the Cloudflare
+              Workers free plan.{" "}
+              <a
+                href={LIMITS_URL}
+                target="_blank"
+                rel="noreferrer noopener"
+                className="text-sky-400 underline decoration-sky-400/40 underline-offset-2 hover:decoration-sky-400"
+              >
+                Cloudflare Workers limits
+              </a>
+              .
+            </p>
+          </div>
+          <button
+            type="button"
+            onClick={dismissLimits}
+            aria-label="Dismiss notice"
+            title="Dismiss"
+            className="-m-1 shrink-0 rounded-md p-1 text-zinc-500 transition-colors hover:text-zinc-200"
+          >
+            <X className="size-3.5" />
+          </button>
+        </div>
+      )}
 
       <Dialog open={inspect !== null} onOpenChange={(open) => !open && setInspect(null)}>
         <DialogContent className="max-w-2xl">

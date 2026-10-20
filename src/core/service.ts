@@ -102,9 +102,7 @@ export class TraceService {
     ]);
 
     const detailCount = clamp(opts.detailLimit ?? DETAIL_COMMIT_LIMIT, 1, 100);
-    const details = await Promise.all(
-      commits.slice(0, detailCount).map((c) => this.client.getCommit(ref, c.sha)),
-    );
+    const details = await this.detailsFor(ref, commits.slice(0, detailCount));
 
     const touched = new Set<string>();
     let additions = 0;
@@ -272,10 +270,22 @@ export class TraceService {
     return this.client.getRaw(this.resolveRepo(input), target, treeish);
   }
 
+  /**
+   * One cache entry for the whole detail pass. On the Free plan Cache API
+   * calls share the 50-subrequest budget with `fetch`, so 30 per-commit
+   * entries would blow it before the trace even finished.
+   */
+  private detailsFor(ref: RepoRef, commits: Commit[]) {
+    const head = commits[0]?.sha ?? "empty";
+    return this.client.cached(`details/${ref.owner}/${ref.name}/${head}/${commits.length}`, () =>
+      Promise.all(commits.map((c) => this.client.getCommit(ref, c.sha))),
+    );
+  }
+
   private async details(input: string, limit: number) {
     const ref = this.resolveRepo(input);
     const commits = await this.client.listCommits(ref, { perPage: clamp(limit, 1, 100) });
-    return Promise.all(commits.map((c) => this.client.getCommit(ref, c.sha)));
+    return this.detailsFor(ref, commits);
   }
 }
 
