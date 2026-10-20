@@ -386,7 +386,7 @@ export function TrackStage({ repo }: { repo: string }) {
                     <div className="flex items-center gap-2 font-mono text-[10px] tracking-wide text-zinc-500 uppercase">
                       <FileText className="size-3" /> Description
                     </div>
-                    <MarkdownBody text={item.body} />
+                    <MarkdownBody text={item.body} baseUrl={`https://github.com/${repo}/`} />
                   </div>
                 )}
 

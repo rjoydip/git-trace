@@ -118,6 +118,11 @@ html.light {
   --color-emerald-300: #059669;
   --color-cyan-400: #0e7490;
   --color-cyan-500: #0891b2;
+  --color-cyan-300: #0891b2;
+  --color-sky-400: #0369a1;
+  --color-sky-500: #0284c7;
+  --color-violet-400: #6d28d9;
+  --color-violet-500: #7c3aed;
   --color-amber-400: #b45309;
   --color-rose-400: #be123c;
   --color-rose-500: #e11d48;
@@ -296,6 +301,9 @@ html.light {
   .select-pop {
     animation: select-in 0.14s cubic-bezier(0.16, 1, 0.3, 1);
   }
+  .toast-in {
+    animation: toast-in 0.22s cubic-bezier(0.16, 1, 0.3, 1);
+  }
   .no-scrollbar {
     scrollbar-width: none;
   }
@@ -352,13 +360,24 @@ html.light {
     scale: 1;
   }
 }
+@keyframes toast-in {
+  from {
+    opacity: 0;
+    transform: translateY(0.75rem) scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
 
 @media (prefers-reduced-motion: reduce) {
   .tab-in,
   .stagger > *,
   .dialog-pop,
   .dialog-fade,
-  .select-pop {
+  .select-pop,
+  .toast-in {
     animation: none;
   }
 }

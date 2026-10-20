@@ -146,11 +146,16 @@ function Viewer({
 
   const type = mediaType(path);
   const inline = isInlineMedia(type);
-  const githubUrl = `https://github.com/${repo}/blob/${at || "HEAD"}/${path
+  const refPath = (at || "HEAD").split("/").map(encodeURIComponent).join("/");
+  const directory = path.split("/").filter(Boolean).slice(0, -1).map(encodeURIComponent).join("/");
+  const githubUrl = `https://github.com/${repo}/blob/${refPath}/${path
     .split("/")
     .filter(Boolean)
     .map(encodeURIComponent)
     .join("/")}`;
+  // A README's own links and images are relative to its directory, not the page.
+  const linkBase = `https://github.com/${repo}/blob/${refPath}/${directory ? `${directory}/` : ""}`;
+  const imageBase = `https://raw.githubusercontent.com/${repo}/${refPath}/${directory ? `${directory}/` : ""}`;
 
   useEffect(() => {
     setMedia(null);
@@ -295,7 +300,7 @@ function Viewer({
             <span className="text-zinc-200"> Download</span> to read it locally.
           </p>
         ) : isMarkdown && !heavy ? (
-          <MarkdownBody text={file.text} fill />
+          <MarkdownBody text={file.text} fill baseUrl={linkBase} imageBaseUrl={imageBase} />
         ) : language && !heavy ? (
           <PrismLight
             language={language}
@@ -609,7 +614,13 @@ export function FilesStage({ repo }: { repo: string }) {
                     : "This tag has no published release, so its commit is shown instead."}
                 </p>
                 {tag.body ? (
-                  <MarkdownBody text={tag.body} />
+                  <MarkdownBody
+                    text={tag.body}
+                    baseUrl={`https://github.com/${repo}/blob/${tagName
+                      .split("/")
+                      .map(encodeURIComponent)
+                      .join("/")}/`}
+                  />
                 ) : (
                   <p className="text-xs text-zinc-500">No notes on this tag.</p>
                 )}
