@@ -1,5 +1,5 @@
 name = "git-trace"
-# The Worker is not a build artifact: wrangler bundles this entry itself.
+# Built by config/vite.worker.ts; wrangler only uploads the bundled output.
 main = "dist/worker/index.js"
 compatibility_date = "2025-07-18"
 compatibility_flags = ["nodejs_compat"]

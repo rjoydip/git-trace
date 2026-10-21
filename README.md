@@ -236,10 +236,29 @@ Tools:
 | `trace_activity`     | Commits per calendar day over a window                      |
 | `trace_pull_request` | One pull request: state, size, reviews, commits, discussion |
 | `trace_issue`        | One issue: state, labels, author, body, comment thread      |
+| `trace_items`        | List pull requests and issues, newest activity first        |
 
-Resource: `git-trace://repository/summary`. Prompt: `history-review`.
+Resource: `git-trace://repository/{owner}/{name}/summary`. Prompt: `history-review`.
 
 Every tool requires `repo` (`"owner/name"` or a GitHub URL) — there is no server-side default.
+
+### Agent skill
+
+An agent skill with cost, window and output guidance lives in
+`skills/git-trace/SKILL.md`. Install it with the
+[skills.sh](https://www.skills.sh/) CLI:
+
+```sh
+npx skills add rjoydip/git-trace                     # project scope, prompts for agent
+npx skills add rjoydip/git-trace -a opencode -y      # non-interactive, OpenCode only
+```
+
+It installs into that agent's project skills directory (`.opencode/skills/` for
+OpenCode, `.claude/skills/` for Claude Code) as a symlink back to
+`skills/git-trace/`, so the repo copy stays the single source of truth. Add `-g`
+to install it for every project instead; `npx skills list` shows what is
+installed and `npx skills update` pulls newer versions. Other skills are on
+[skills.sh](https://www.skills.sh/).
 
 ## JSON API
 

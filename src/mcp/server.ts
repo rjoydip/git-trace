@@ -1,4 +1,4 @@
-import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
+import { McpServer, ResourceTemplate } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import type { TraceService } from "../core/service";
 
@@ -31,7 +31,8 @@ export function createMcpServer(service: TraceService): McpServer {
   server.registerTool(
     "trace_repository",
     {
-      description: "Summarize a repository: metadata plus commit/author/churn headline stats.",
+      description:
+        "Summarize a repository: metadata plus commit/author/churn stats over the latest 100 commits (~32 GitHub requests).",
       inputSchema: { repo: repoArg },
     },
     ({ repo }) =>
@@ -45,7 +46,8 @@ export function createMcpServer(service: TraceService): McpServer {
   server.registerTool(
     "trace_commits",
     {
-      description: "List and search a repository's commits, optionally for a path or author.",
+      description:
+        "List commits (default 30, max 100), optionally filtered by path, author, or date. `q` searches only the returned page.",
       inputSchema: {
         repo: repoArg,
         path: z.string().optional().describe("Only commits touching this path"),
@@ -72,7 +74,8 @@ export function createMcpServer(service: TraceService): McpServer {
   server.registerTool(
     "trace_contributors",
     {
-      description: "Rank contributors by commit count, with avatars and last-commit date.",
+      description:
+        "Rank contributors over the latest 100 commits, with avatars and last-commit date.",
       inputSchema: { repo: repoArg },
     },
     ({ repo }) =>
@@ -83,7 +86,7 @@ export function createMcpServer(service: TraceService): McpServer {
     "trace_hot_files",
     {
       description:
-        "Rank files by churn (additions + deletions) across the most recent commits — where the repo changes most.",
+        "Rank files by churn (additions + deletions) across the latest 30 commits — where the repo changes most.",
       inputSchema: {
         repo: repoArg,
         limit: z.number().int().min(1).max(100).optional(),
@@ -98,7 +101,8 @@ export function createMcpServer(service: TraceService): McpServer {
   server.registerTool(
     "trace_file_history",
     {
-      description: "Trace one file's history: which commits touched it, with diff stats.",
+      description:
+        "Trace a file's commits within the latest 30 commits, with per-commit diff stats.",
       inputSchema: {
         repo: repoArg,
         path: z.string().describe("Repository-relative file path"),
@@ -115,7 +119,8 @@ export function createMcpServer(service: TraceService): McpServer {
   server.registerTool(
     "trace_activity",
     {
-      description: "Commit activity per calendar day over a window — the repository's pulse.",
+      description:
+        "Commit activity per calendar day over the latest 100 commits; since/until bound the returned buckets.",
       inputSchema: {
         repo: repoArg,
         since: z.string().optional().describe("ISO date; start of the window"),
@@ -134,10 +139,33 @@ export function createMcpServer(service: TraceService): McpServer {
   );
 
   server.registerTool(
+    "trace_items",
+    {
+      description:
+        "List pull requests and issues, newest activity first, with state, labels, comment counts, and URLs. Use the number with trace_pull_request or trace_issue.",
+      inputSchema: {
+        repo: repoArg,
+        state: z
+          .enum(["open", "closed", "all"])
+          .optional()
+          .describe("Item state to return; defaults to open"),
+        limit: z.number().int().min(1).max(100).optional().describe("Max items (default 50)"),
+      },
+    },
+    ({ repo, state, limit }) =>
+      run(async () => {
+        const opts: Parameters<TraceService["items"]>[1] = {};
+        if (state) opts.state = state;
+        if (limit) opts.limit = limit;
+        return { items: await service.items(requireRepo(repo), opts) };
+      }),
+  );
+
+  server.registerTool(
     "trace_pull_request",
     {
       description:
-        "Trace one pull request: state, size, labels, review verdicts, its commits and discussion.",
+        "Trace one pull request: state, size, labels, review verdicts, commits and discussion excerpts. Use trace_items to find numbers.",
       inputSchema: {
         repo: repoArg,
         number: z.number().int().positive().describe("Pull request number"),
@@ -157,7 +185,8 @@ export function createMcpServer(service: TraceService): McpServer {
   server.registerTool(
     "trace_issue",
     {
-      description: "Trace one issue: state, labels, author, body and its comment thread.",
+      description:
+        "Trace one issue: state, labels, author, body and comment excerpts. Use trace_items to find numbers.",
       inputSchema: {
         repo: repoArg,
         number: z.number().int().positive().describe("Issue number"),
@@ -176,15 +205,15 @@ export function createMcpServer(service: TraceService): McpServer {
 
   server.registerResource(
     "repository-summary",
-    "git-trace://repository/summary",
+    new ResourceTemplate("git-trace://repository/{owner}/{name}/summary", { list: undefined }),
     { mimeType: "application/json", description: "Repository metadata and headline stats" },
-    async () => {
-      const target = requireRepo();
+    async (uri, variables) => {
+      const target = requireRepo(`${String(variables.owner)}/${String(variables.name)}`);
       const [meta, stats] = await Promise.all([service.repo(target), service.stats(target)]);
       return {
         contents: [
           {
-            uri: "git-trace://repository/summary",
+            uri: uri.toString(),
             mimeType: "application/json",
             text: JSON.stringify({ repository: target, meta, stats }, null, 2),
           },

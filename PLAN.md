@@ -68,7 +68,7 @@ browser       ──▶ assets  ┘        │
 
 - [x] `trace_repository`, `trace_commits`, `trace_contributors`,
       `trace_hot_files`, `trace_file_history`, `trace_activity`.
-- [x] Resource `git-trace://repository/summary`; prompt `history-review`.
+- [x] Resource `git-trace://repository/{owner}/{name}/summary`; prompt `history-review`.
 - [x] Streamable HTTP, stateless, on `/mcp`.
 
 ### Phase 3 — Dashboard (done)
