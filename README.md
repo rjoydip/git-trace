@@ -62,9 +62,10 @@ bun run dev            # dashboard on http://127.0.0.1:5173 — Vite HMR
 
 Open **http://127.0.0.1:5173**. Vite proxies `/api` and `/mcp` to the Worker, so
 the whole app — including the Simulator and the Tests tab — works against the
-live Worker without compiling anything. `wrangler dev` watches the Worker's
-module graph, so editing `src/worker`, `src/core` or `src/mcp` restarts it in
-place. (In dev the Worker serves only `/api` and `/mcp`; its assets point at
+live Worker without compiling the dashboard. `wrangler dev` serves the bundled
+`dist/worker/index.js`, so run `bun run build:worker` after editing `src/worker`,
+`src/core` or `src/mcp` — wrangler reloads the moment that bundle changes. (In
+dev the Worker serves only `/api` and `/mcp`; its assets point at
 `src/web/public`, so don't browse the dashboard on :8787.)
 
 ### Offline, without burning GitHub quota
