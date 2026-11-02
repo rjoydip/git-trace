@@ -86,6 +86,10 @@ Restarting the script resets the history; running it again while one is up just
 reuses that emulator. State is in memory. Raw README images and links still
 point at github.com, so those need a network.
 
+If `wrangler dev` dies with `SQLITE_BUSY` or "database is locked", two Workers
+are sharing `.wrangler/state` — usually one left over from an earlier shell.
+Stop every `wrangler dev`, delete `.wrangler/`, and start a single one.
+
 ## Deploy
 
 There is nothing to configure on the deployment itself — no repository, no
