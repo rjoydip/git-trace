@@ -301,9 +301,6 @@ html.light {
   .select-pop {
     animation: select-in 0.14s cubic-bezier(0.16, 1, 0.3, 1);
   }
-  .toast-in {
-    animation: toast-in 0.22s cubic-bezier(0.16, 1, 0.3, 1);
-  }
   .no-scrollbar {
     scrollbar-width: none;
   }
@@ -360,24 +357,30 @@ html.light {
     scale: 1;
   }
 }
-@keyframes toast-in {
-  from {
-    opacity: 0;
-    transform: translateY(0.75rem) scale(0.98);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0) scale(1);
-  }
-}
 
 @media (prefers-reduced-motion: reduce) {
   .tab-in,
   .stagger > *,
   .dialog-pop,
   .dialog-fade,
-  .select-pop,
-  .toast-in {
+  .select-pop {
     animation: none;
   }
+}
+
+/* `notch-toast` paints the island from `--foreground`/`--background`, which this
+ * palette flips per theme — giving a white bar on the dark dashboard. Scope the
+ * library's intended dark surface to the toaster so it reads as a device notch
+ * in either theme. */
+.nt-root {
+  --foreground: #18181b;
+  --background: #fafafa;
+}
+
+/* The label clips because its `overflow: hidden` zeroes the flex min-size, so the
+ * content is measured while squeezed by the animated shell width and the island
+ * settles ~15px too narrow. Pin both to their natural width. */
+.nt-label,
+.nt-content {
+  min-width: max-content;
 }
