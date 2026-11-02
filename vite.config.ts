@@ -17,8 +17,10 @@ export default defineConfig({
   server: {
     port: 5173,
     proxy: {
-      "/api": { target: apiTarget, changeOrigin: true },
-      "/mcp": { target: apiTarget, changeOrigin: true },
+      // Regex keys: a bare "/api" prefix also swallows the app's own module URL
+      // "/api.ts", breaking the dev build.
+      "^/api/": { target: apiTarget, changeOrigin: true },
+      "^/mcp": { target: apiTarget, changeOrigin: true },
     },
   },
   build: {
