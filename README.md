@@ -39,12 +39,15 @@ src/
   worker/index.ts Hono app: /api/*, /mcp, static assets
   web/            shadcn dashboard (React + Tailwind v4, 11-tab control room)
 vite.config.ts         dashboard build (dist/web)
+scripts/emulate.ts     seeded local GitHub for dev — `bun run emulate`
 wrangler.toml          Worker entry + assets
 .github/workflows/     CI (check + build) · Deploy (Cloudflare)
 ```
 
-Only the dashboard has a build step. Wrangler bundles `src/worker/index.ts`
-itself, so the Worker is never a build artifact you have to keep in sync.
+Both sides are built, and `bun run build` does both: `build:web` writes the
+dashboard to `dist/web`, and `build:worker` bundles `src/worker/index.ts` into
+`dist/worker/index.js` — the file `wrangler.toml` points at. Nothing else needs
+keeping in sync.
 
 ## Setup
 
@@ -53,10 +56,11 @@ bun install
 bun run check          # format:check && lint && typecheck && test
 ```
 
-Dev mode — two shells, no build step, and both sides reload on save:
+Dev mode — two shells. The dashboard reloads on save; the Worker picks up `src/`
+edits once you re-bundle it:
 
 ```sh
-bun run dev:worker     # Worker on http://127.0.0.1:8787 — reloads on every src/ save
+bun run dev:worker     # Worker on http://127.0.0.1:8787 — needs build:worker to pick up src/ edits
 bun run dev            # dashboard on http://127.0.0.1:5173 — Vite HMR
 ```
 
