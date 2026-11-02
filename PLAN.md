@@ -84,6 +84,12 @@ browser       ──▶ assets  ┘        │
 - [x] `wrangler.toml` with the assets binding and SPA fallback — no vars, and no default repository.
 - [x] No server-side credentials: the visitor's own token reaches GitHub through a request header.
 
+### Phase 5 — CLI (planned)
+
+Everything the dashboard shows, from a terminal, plus the local GitHub emulator
+for offline runs. See [PLAN-cli.md](PLAN-cli.md) for the command map, the option
+reference and the phases.
+
 ## 6. Deliberate non-goals (for now)
 
 Named so they are decisions, not omissions:
