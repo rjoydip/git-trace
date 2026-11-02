@@ -76,6 +76,51 @@ const FIXTURES: Fixture[] = [
   },
 ];
 
+const EMULATOR_URL = `http://127.0.0.1:${PORT}`;
+const owner = USERS[0]!;
+
+/**
+ * `bun run emulate` is safe to run twice: if the port already answers with the
+ * seeded demo, leave it alone. Anything else holding the port is reported
+ * before `createEmulator` can throw a bare EADDRINUSE.
+ */
+const probePort = async (): Promise<"free" | "seeded" | "busy"> => {
+  try {
+    const res = await fetch(`${EMULATOR_URL}/repos/${OWNER}/${REPO}/commits`, {
+      headers: { authorization: `Bearer ${owner.token}` },
+      signal: AbortSignal.timeout(1500),
+    });
+    const body = (await res.json().catch(() => null)) as unknown;
+    return res.ok && Array.isArray(body) && body.length > 0 ? "seeded" : "busy";
+  } catch {
+    return "free";
+  }
+};
+
+const portBusy = (state: string) => `
+  Port ${PORT} is ${state}.
+
+  A leftover emulator is free to reuse; anything else needs to move. Either
+  stop what owns the port, or run on another one and update .dev.vars:
+
+    EMULATE_PORT=4011 bun run emulate
+`;
+
+const portState = await probePort();
+if (portState === "seeded") {
+  console.log(`
+  github   ${EMULATOR_URL}  (already running)
+
+  ${OWNER}/${REPO} is seeded and serving — nothing to start.
+  dashboard -> http://127.0.0.1:5173/?repo=${OWNER}/${REPO}
+`);
+  process.exit(0);
+}
+if (portState === "busy") {
+  console.error(portBusy("already in use by something that is not this demo emulator"));
+  process.exit(1);
+}
+
 const github = await createEmulator({
   service: "github",
   port: PORT,
@@ -97,12 +142,18 @@ const github = await createEmulator({
       ],
     },
   },
+}).catch((err: unknown) => {
+  // The probe can win a race against a previous run that is still shutting down.
+  console.error(
+    portBusy(
+      `could not be bound (${err instanceof Error ? err.message.split("\n")[0] : String(err)})`,
+    ),
+  );
+  process.exit(1);
 });
 
-const owner = USERS[0]!;
-
 const api = async (method: string, path: string, body: unknown, token: string) => {
-  const res = await fetch(`${github.url}${path}`, {
+  const res = await fetch(`${EMULATOR_URL}${path}`, {
     method,
     headers: { authorization: `Bearer ${token}`, "content-type": "application/json" },
     body: JSON.stringify(body),
@@ -123,7 +174,7 @@ for (const user of USERS.slice(1)) {
 
 /** Updating an existing file needs its blob sha, as on github.com. */
 const shaOf = async (path: string): Promise<string | undefined> => {
-  const res = await fetch(`${github.url}/repos/${OWNER}/${REPO}/contents/${path}`, {
+  const res = await fetch(`${EMULATOR_URL}/repos/${OWNER}/${REPO}/contents/${path}`, {
     headers: { authorization: `Bearer ${owner.token}` },
   });
   if (!res.ok) return undefined;
@@ -150,16 +201,16 @@ for (const fixture of FIXTURES) {
 }
 
 const commits = (await (
-  await fetch(`${github.url}/repos/${OWNER}/${REPO}/commits`, {
+  await fetch(`${EMULATOR_URL}/repos/${OWNER}/${REPO}/commits`, {
     headers: { authorization: `Bearer ${owner.token}` },
   })
 ).json()) as Array<{ commit: { message: string; author: { name: string; date: string } } }>;
 
 console.log(`
-  github   ${github.url}
+  github   ${EMULATOR_URL}
   repo     ${OWNER}/${REPO}  (${commits.length} commits)
 
-  .dev.vars -> GITHUB_API_URL=${github.url}
+  .dev.vars -> GITHUB_API_URL=${EMULATOR_URL}
   dashboard -> http://127.0.0.1:5173/?repo=${OWNER}/${REPO}
 
   Ctrl+C to stop; state is in memory.

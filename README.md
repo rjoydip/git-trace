@@ -81,8 +81,9 @@ bun run emulate        # GitHub API on http://127.0.0.1:4010, in memory
 
 Copy `.dev.vars.example` to `.dev.vars` and restart the Worker: it reads
 `GITHUB_API_URL` and sends every GitHub call there instead of api.github.com.
-Then open **http://127.0.0.1:5173/?repo=octocat/trace-demo**. Any token works,
-and restarting the script resets the history. Raw README images and links still
+Then open **http://127.0.0.1:5173/?repo=octocat/trace-demo**. Any token works.
+Restarting the script resets the history; running it again while one is up just
+reuses that emulator. State is in memory. Raw README images and links still
 point at github.com, so those need a network.
 
 ## Deploy
