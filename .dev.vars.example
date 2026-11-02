@@ -1,0 +1,4 @@
+# Copy to `.dev.vars` (gitignored) for `bun run dev:worker`.
+# Point GitHub calls at the local emulator from `bun run emulate`.
+# Leave it unset to use https://api.github.com with an anonymous quota.
+GITHUB_API_URL=http://127.0.0.1:4010

@@ -9,6 +9,8 @@ import { TraceService, type TraceServiceOptions } from "../core/service";
 interface Env {
   /** Static-assets binding. Typed minimally so DOM and Workers libs don't clash. */
   ASSETS: { fetch: (request: Request) => Promise<Response> };
+  /** Local dev only: the GitHub base URL, pointed at `bun run emulate`. */
+  GITHUB_API_URL?: string;
 }
 
 const app = new Hono<{ Bindings: Env }>();
@@ -43,6 +45,9 @@ const serviceFor = (c: AppContext) => {
   const options: TraceServiceOptions = { cacheTtlSeconds: cacheTtl(c) };
   const token = c.req.header(TOKEN_HEADER)?.trim();
   if (token) options.token = token;
+  // Unset in production; local dev points it at the emulator so a trace costs no
+  // GitHub quota and needs no token.
+  if (c.env.GITHUB_API_URL) options.baseUrl = c.env.GITHUB_API_URL;
   return new TraceService(options);
 };
 
