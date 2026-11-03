@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { csvCell, serializeRows } from "./export";
+import { csvCell, serializeRows } from "../src/web/lib/export";
 
 const rows = [
   { path: "src/a.ts", churn: 12 },

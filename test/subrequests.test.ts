@@ -1,5 +1,5 @@
 import { afterEach, expect, test } from "bun:test";
-import { TraceService } from "./service";
+import { TraceService } from "../src/core/service";
 
 /**
  * Cloudflare counts Cache API `match`/`put` against the same per-invocation

@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, test } from "bun:test";
-import { GitHubClient } from "./github";
+import { GitHubClient } from "../src/core/github";
 
 interface FakeCache {
   match(request: string): Promise<Response | undefined>;

@@ -205,7 +205,7 @@ export class GitHubClient {
     const message = body?.message ?? `GitHub API ${res.status}`;
     const hint =
       (res.status === 403 || res.status === 429) && /rate limit/i.test(message)
-        ? " — add a personal access token in Settings to raise the limit from 60 to 5000 requests/hour."
+        ? " — authenticate with a personal access token to raise the limit from 60 to 5000 requests/hour."
         : "";
     throw new GitHubError(res.status, message + hint);
   }

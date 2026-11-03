@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { extensionOf, isInlineMedia, mediaType } from "./media";
+import { extensionOf, isInlineMedia, mediaType } from "../src/core/media";
 
 describe("extensionOf", () => {
   test("returns the lower-case extension", () => {

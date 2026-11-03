@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
-import { GRAPH_VIEWBOX, layout } from "./file-graph";
-import type { FileGraph, FileNode } from "../../core/types";
+import { GRAPH_VIEWBOX, layout } from "../src/web/components/file-graph";
+import type { FileGraph, FileNode } from "../src/core/types";
 
 function node(path: string, churn: number): FileNode {
   const cut = path.indexOf("/");

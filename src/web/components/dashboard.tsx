@@ -62,6 +62,7 @@ import { copyText } from "@/lib/export";
 import { loadCommits, loadFileHistory, type DeploymentConfig } from "@/api";
 import { setToken, useToken } from "@/lib/token";
 import { CACHE_TTLS, setPrefs, usePrefs, WINDOWS } from "@/lib/prefs";
+import { buildContextPrompt } from "../../core/prompt";
 import type { AuthorRollup, FileTouch } from "../../core/trace";
 import type {
   ActivityBucket,
@@ -310,38 +311,6 @@ export function RepoSummaryCard({ meta, stats }: { meta: RepoSummary; stats: Tra
 }
 
 /** Serializes the loaded trace into a compact digest an agent can consume. */
-function buildContextPrompt(input: {
-  meta: RepoSummary;
-  stats: TraceStats;
-  contributors: AuthorRollup[];
-  hotFiles: HotFile[];
-  commits: Commit[];
-}): string {
-  const { meta, stats, contributors, hotFiles, commits } = input;
-  const lines = [
-    `[REPOSITORY CONTEXT — ${meta.fullName}]`,
-    meta.description ?? "",
-    `Branch: ${meta.defaultBranch} · Language: ${meta.language ?? "unknown"} · Stars: ${meta.stars}`,
-    "",
-    `STATS: ${stats.commits} commits · ${stats.authors} contributors · ${stats.filesTouched} files touched`,
-    `       +${stats.additions} / -${stats.deletions} lines`,
-    "",
-    "HOT FILES (by churn):",
-    ...hotFiles
-      .slice(0, 10)
-      .map((f) => `  ${f.path} — ${f.commits} commits, +${f.additions}/-${f.deletions}`),
-    "",
-    "TOP CONTRIBUTORS:",
-    ...contributors.slice(0, 10).map((c) => `  ${c.login ?? c.name} — ${c.commits} commits`),
-    "",
-    "RECENT COMMITS:",
-    ...commits
-      .slice(0, 20)
-      .map((c) => `  ${c.shortSha} ${c.date} ${c.author.login ?? c.author.name}: ${c.subject}`),
-  ];
-  return lines.join("\n");
-}
-
 export function PromptExportCard({
   payload,
 }: {

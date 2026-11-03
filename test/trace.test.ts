@@ -9,8 +9,8 @@ import {
   rollupAuthors,
   searchCommits,
   summarize,
-} from "./trace";
-import type { Commit, CommitDetail } from "./types";
+} from "../src/core/trace";
+import type { Commit, CommitDetail } from "../src/core/types";
 
 function commit(partial: Partial<Commit> & { sha: string; date: string }): Commit {
   return {
