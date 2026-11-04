@@ -8,8 +8,11 @@
  * parsed into React nodes — nothing here produces raw markup, so the renderer
  * never needs `dangerouslySetInnerHTML`.
  *
- * Deliberately out of scope: footnotes, definition lists, raw HTML tables and
- * arbitrary HTML. Unknown tags stay visible as text instead of vanishing.
+ * Block-level HTML in the wild is mostly the README furniture — centred
+ * headings, `<table>` layouts and `<ul>` badge lists — so that whitelist is
+ * parsed into the same blocks as its Markdown equivalent. Deliberately out of
+ * scope: footnotes, definition lists and arbitrary HTML. Unknown tags stay
+ * visible as text instead of vanishing.
  */
 
 export interface LinkReference {
@@ -64,13 +67,16 @@ const RULE = /^ {0,3}(?:(?:\*[ \t]*){3,}|(?:-[ \t]*){3,}|(?:_[ \t]*){3,})$/;
 const QUOTE = /^ {0,3}>\s?(.*)$/;
 const CALLOUT = /^\[!(NOTE|INFO|TIP|IMPORTANT|WARNING|CAUTION)\]\s*$/i;
 const LIST = /^(\s*)([-*+]|\d{1,9}[.)])\s+(.*)$/;
-const TABLE_DELIM = /^\s*\|?\s*:?-+:?\s*(?:\|\s*:?-+:?\s*)+\|?\s*$/;
+const TABLE_DELIM = /^\s*\|?\s*:?-+:?\s*(?:\|\s*:?-+:?\s*)*\|?\s*$/;
 const DETAILS_OPEN = /^\s*<details\b([^>]*)>/i;
 const DETAILS_ONE_LINE = /^\s*<details\b([^>]*)>([\s\S]*)<\/details>\s*$/i;
 const HTML_RULE = /^\s*<hr\s*\/?>\s*$/i;
 const PICTURE_OPEN = /^\s*<picture\b/i;
-const WRAP_OPEN = /^\s*<(p|div)\b([^>]*)>\s*$/i;
-const WRAP_ONE_LINE = /^\s*<(p|div)\b([^>]*)>([\s\S]*)<\/\1>\s*$/i;
+const HTML_HEADING_OPEN = /^\s*<h([1-6])\b[^>]*>/i;
+const HTML_TABLE_OPEN = /^\s*<table\b/i;
+const HTML_LIST_OPEN = /^\s*<(ul|ol)\b[^>]*>/i;
+const WRAP_OPEN = /^\s*<(p|div|center)\b([^>]*)>\s*$/i;
+const WRAP_ONE_LINE = /^\s*<(p|div|center)\b([^>]*)>([\s\S]*)<\/\1>\s*$/i;
 const IMAGE_LINE = /^\s*<img\b[^>]*>\s*$/i;
 
 const normRef = (label: string): string => label.trim().toLowerCase().replace(/\s+/g, " ");
@@ -710,8 +716,9 @@ function parseWrap(
   const line = lines[index] ?? "";
   const oneLine = WRAP_ONE_LINE.exec(line);
   if (oneLine) {
+    const tag = oneLine[1]!.toLowerCase();
     const attrs = attributes(oneLine[2] ?? "");
-    const align = (attrs.align ?? "").toLowerCase();
+    const align = tag === "center" ? "center" : (attrs.align ?? "").toLowerCase();
     return {
       block: {
         type: "html",
@@ -726,7 +733,7 @@ function parseWrap(
   if (!open) return null;
   const tag = open[1]!.toLowerCase();
   const attrs = attributes(open[2] ?? "");
-  const align = (attrs.align ?? "").toLowerCase();
+  const align = tag === "center" ? "center" : (attrs.align ?? "").toLowerCase();
   const inner: string[] = [];
   let i = index + 1;
   while (i < lines.length) {
@@ -744,6 +751,121 @@ function parseWrap(
       blocks: parseBlocks(inner, refs),
     },
     next: i,
+  };
+}
+
+/** Inner HTML of a block whose open and close tags sit on their own lines (or one line). */
+function collectHtml(
+  lines: string[],
+  index: number,
+  open: RegExp,
+  close: RegExp,
+): { inner: string; next: number } | null {
+  const start = open.exec(lines[index] ?? "");
+  if (!start) return null;
+  const collected: string[] = [];
+  let i = index;
+  let closed = false;
+  while (i < lines.length) {
+    const line = lines[i] ?? "";
+    collected.push(line);
+    i += 1;
+    if (close.test(line)) {
+      closed = true;
+      break;
+    }
+  }
+  if (!closed) return null;
+  const rest = collected.join("\n").slice(start[0].length);
+  const end = close.exec(rest);
+  return end ? { inner: rest.slice(0, end.index), next: i } : null;
+}
+
+/** `align="center"` or `style="text-align: center"` on a table cell. */
+function htmlAlignment(source: string): MdAlign {
+  const attrs = attributes(source);
+  const style = /text-align\s*:\s*(left|center|right)/i.exec(attrs.style ?? "");
+  const value = (attrs.align ?? style?.[1] ?? "").toLowerCase();
+  return value === "left" || value === "center" || value === "right" ? value : null;
+}
+
+function parseHtmlHeading(
+  lines: string[],
+  index: number,
+  refs: Map<string, LinkReference>,
+): { block: MdBlock; next: number } | null {
+  const open = HTML_HEADING_OPEN.exec(lines[index] ?? "");
+  if (!open) return null;
+  const level = Number(open[1]);
+  const collected = collectHtml(
+    lines,
+    index,
+    HTML_HEADING_OPEN,
+    new RegExp(`</h${level}\\s*>`, "i"),
+  );
+  if (!collected) return null;
+  return {
+    block: { type: "heading", level, children: parseInline(collected.inner.trim(), refs) },
+    next: collected.next,
+  };
+}
+
+function parseHtmlTable(
+  lines: string[],
+  index: number,
+  refs: Map<string, LinkReference>,
+): { block: MdBlock; next: number } | null {
+  const collected = collectHtml(lines, index, HTML_TABLE_OPEN, /<\/table\s*>/i);
+  if (!collected) return null;
+  const parsed = [...collected.inner.matchAll(/<tr\b[^>]*>([\s\S]*?)<\/tr\s*>/gi)]
+    .map((row) =>
+      [...(row[1] ?? "").matchAll(/<t([hd])\b([^>]*)>([\s\S]*?)<\/t\1\s*>/gi)].map((cell) => ({
+        align: htmlAlignment(cell[2] ?? ""),
+        parts: parseInline(cell[3] ?? "", refs),
+      })),
+    )
+    .filter((row) => row.length > 0);
+  if (!parsed.length) return null;
+  const columns = Math.max(...parsed.map((row) => row.length));
+  const pad = (row: { parts: MdInline[] }[]): MdInline[][] =>
+    Array.from({ length: columns }, (_, column) => row[column]?.parts ?? []);
+  return {
+    block: {
+      type: "table",
+      align: Array.from({ length: columns }, (_, column) => parsed[0]?.[column]?.align ?? null),
+      header: pad(parsed[0]!),
+      rows: parsed.slice(1).map(pad),
+    },
+    next: collected.next,
+  };
+}
+
+function parseHtmlList(
+  lines: string[],
+  index: number,
+  refs: Map<string, LinkReference>,
+): { block: MdBlock; next: number } | null {
+  const open = HTML_LIST_OPEN.exec(lines[index] ?? "");
+  if (!open) return null;
+  const tag = (open[1] ?? "ul").toLowerCase();
+  const collected = collectHtml(lines, index, HTML_LIST_OPEN, new RegExp(`</${tag}\\s*>`, "i"));
+  if (!collected) return null;
+  const items: MdListItem[] = [...collected.inner.matchAll(/<li\b[^>]*>([\s\S]*?)<\/li\s*>/gi)].map(
+    (item) => ({
+      task: null,
+      blocks: parseBlocks((item[1] ?? "").trim().split("\n"), refs),
+    }),
+  );
+  if (!items.length) return null;
+  const start = Number.parseInt(attributes(open[0]).start ?? "", 10);
+  return {
+    block: {
+      type: "list",
+      ordered: tag === "ol",
+      start: Number.isFinite(start) ? start : 1,
+      items,
+    },
+    next: collected.next,
   };
 }
 
@@ -818,6 +940,9 @@ function isBlockStart(lines: string[], index: number): boolean {
   if (
     DETAILS_OPEN.test(line) ||
     WRAP_OPEN.test(line) ||
+    HTML_HEADING_OPEN.test(line) ||
+    HTML_TABLE_OPEN.test(line) ||
+    HTML_LIST_OPEN.test(line) ||
     IMAGE_LINE.test(line) ||
     PICTURE_OPEN.test(line)
   )
@@ -861,6 +986,27 @@ function parseBlocks(lines: string[], refs: Map<string, LinkReference>): MdBlock
     if (wrap) {
       blocks.push(wrap.block);
       i = wrap.next;
+      continue;
+    }
+
+    const htmlHeading = parseHtmlHeading(lines, i, refs);
+    if (htmlHeading) {
+      blocks.push(htmlHeading.block);
+      i = htmlHeading.next;
+      continue;
+    }
+
+    const htmlTable = parseHtmlTable(lines, i, refs);
+    if (htmlTable) {
+      blocks.push(htmlTable.block);
+      i = htmlTable.next;
+      continue;
+    }
+
+    const htmlList = parseHtmlList(lines, i, refs);
+    if (htmlList) {
+      blocks.push(htmlList.block);
+      i = htmlList.next;
       continue;
     }
 
