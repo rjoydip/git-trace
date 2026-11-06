@@ -39,12 +39,15 @@ src/
   worker/index.ts Hono app: /api/*, /mcp, static assets
   web/            shadcn dashboard (React + Tailwind v4, 11-tab control room)
 vite.config.ts         dashboard build (dist/web)
+scripts/emulate.ts     seeded local GitHub for dev — `bun run emulate`
 wrangler.toml          Worker entry + assets
 .github/workflows/     CI (check + build) · Deploy (Cloudflare)
 ```
 
-Only the dashboard has a build step. Wrangler bundles `src/worker/index.ts`
-itself, so the Worker is never a build artifact you have to keep in sync.
+Both sides are built, and `bun run build` does both: `build:web` writes the
+dashboard to `dist/web`, and `build:worker` bundles `src/worker/index.ts` into
+`dist/worker/index.js` — the file `wrangler.toml` points at. Nothing else needs
+keeping in sync.
 
 ## Setup
 
@@ -53,19 +56,43 @@ bun install
 bun run check          # format:check && lint && typecheck && test
 ```
 
-Dev mode — two shells, no build step, and both sides reload on save:
+Dev mode — two shells. The dashboard reloads on save; the Worker picks up `src/`
+edits once you re-bundle it:
 
 ```sh
-bun run dev:worker     # Worker on http://127.0.0.1:8787 — reloads on every src/ save
+bun run dev:worker     # Worker on http://127.0.0.1:8787 — needs build:worker to pick up src/ edits
 bun run dev            # dashboard on http://127.0.0.1:5173 — Vite HMR
 ```
 
 Open **http://127.0.0.1:5173**. Vite proxies `/api` and `/mcp` to the Worker, so
 the whole app — including the Simulator and the Tests tab — works against the
-live Worker without compiling anything. `wrangler dev` watches the Worker's
-module graph, so editing `src/worker`, `src/core` or `src/mcp` restarts it in
-place. (In dev the Worker serves only `/api` and `/mcp`; its assets point at
+live Worker without compiling the dashboard. `wrangler dev` serves the bundled
+`dist/worker/index.js`, so run `bun run build:worker` after editing `src/worker`,
+`src/core` or `src/mcp` — wrangler reloads the moment that bundle changes. (In
+dev the Worker serves only `/api` and `/mcp`; its assets point at
 `src/web/public`, so don't browse the dashboard on :8787.)
+
+### Offline, without burning GitHub quota
+
+One trace is about 32 GitHub requests, and an anonymous caller gets 60 an hour.
+For local work, `bun run emulate` starts a stateful GitHub emulator (Vercel Labs'
+`emulate`) seeded with `octocat/trace-demo` — seven commits by three authors, so
+every tab renders something:
+
+```sh
+bun run emulate        # GitHub API on http://127.0.0.1:4010, in memory
+```
+
+Copy `.dev.vars.example` to `.dev.vars` and restart the Worker: it reads
+`GITHUB_API_URL` and sends every GitHub call there instead of api.github.com.
+Then open **http://127.0.0.1:5173/?repo=octocat/trace-demo**. Any token works.
+Restarting the script resets the history; running it again while one is up just
+reuses that emulator. State is in memory. Raw README images and links still
+point at github.com, so those need a network.
+
+If `wrangler dev` dies with `SQLITE_BUSY` or "database is locked", two Workers
+are sharing `.wrangler/state` — usually one left over from an earlier shell.
+Stop every `wrangler dev`, delete `.wrangler/`, and start a single one.
 
 ## Deploy
 
