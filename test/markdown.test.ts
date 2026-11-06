@@ -282,6 +282,50 @@ test("HTML horizontal rules become rules", () => {
   ]);
 });
 
+test("raw HTML tables become table blocks", () => {
+  const blocks = parseMarkdown(
+    '<table style="table-layout:fixed">\n' +
+      '<tr><th align="center">A</th><th>B</th></tr>\n' +
+      '<tr><td><a href="https://x.dev">x</a></td><td>`y`</td></tr>\n' +
+      "</table>",
+  );
+  const table = first(blocks, "table");
+  expect(table.align).toEqual(["center", null]);
+  expect(text(table.header[0] ?? [])).toBe("A");
+  expect(text(table.rows[0]?.[0] ?? [])).toBe("x");
+  expect(table.rows[0]?.[0]?.[0]?.type).toBe("link");
+  expect(text(table.rows[0]?.[1] ?? [])).toBe("y");
+});
+
+test("raw HTML headings and lists become blocks", () => {
+  const blocks = parseMarkdown(
+    '<h2 align="center">Title *em*</h2>\n\n<ol start="2">\n<li>one</li>\n<li>two</li>\n</ol>',
+  );
+  const heading = first(blocks, "heading");
+  expect(heading.level).toBe(2);
+  expect(text(heading.children)).toBe("Title em");
+  const list = first(blocks, "list");
+  expect(list.ordered).toBe(true);
+  expect(list.start).toBe(2);
+  expect(list.items).toHaveLength(2);
+  const item = list.items[0]?.blocks[0];
+  if (item?.type !== "paragraph") throw new Error("expected paragraph");
+  expect(text(item.children)).toBe("one");
+});
+
+test("a <center> wrapper keeps its alignment and inner blocks", () => {
+  const blocks = parseMarkdown("<center>\n<h1>Hello</h1>\n</center>");
+  const html = first(blocks, "html");
+  expect(html.align).toBe("center");
+  expect(first(html.blocks, "heading").level).toBe(1);
+});
+
+test("a one-column GFM table is still a table", () => {
+  const [table] = parseMarkdown("| Name |\n| --- |\n| a |");
+  if (table?.type !== "table") throw new Error("expected table");
+  expect(text(table.rows[0]?.[0] ?? [])).toBe("a");
+});
+
 test("unsafe URL schemes are neutralised", () => {
   expect(resolveUrl("javascript:alert(1)")).toBe("#");
   expect(resolveUrl("data:text/html,x")).toBe("#");
