@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
-import { authorTallies, commitAuthor, commitBody, filterCommits } from "./commits";
-import type { Commit } from "../../core/types";
+import { authorTallies, commitAuthor, commitBody, filterCommits } from "../src/web/lib/commits";
+import type { Commit } from "../src/core/types";
 
 function commit(sha: string, author: { name: string; login?: string }, subject: string): Commit {
   return {

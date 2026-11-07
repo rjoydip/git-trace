@@ -7,7 +7,7 @@ import {
   type MdBlock,
   type MdInline,
   type MdListItem,
-} from "./markdown";
+} from "../src/web/lib/markdown";
 
 const text = (parts: MdInline[]): string =>
   parts

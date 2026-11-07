@@ -1,5 +1,11 @@
 import { describe, expect, test } from "bun:test";
-import { buildTree, defaultFilePath, flattenFiles, ancestorsOf, type FileNode } from "./file-tree";
+import {
+  buildTree,
+  defaultFilePath,
+  flattenFiles,
+  ancestorsOf,
+  type FileNode,
+} from "../src/web/lib/file-tree";
 
 const ENTRIES = [
   { path: "README.md", size: 1200 },

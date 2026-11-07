@@ -34,6 +34,26 @@ and no local checkout.
    same call within the TTL is cheap; a new head commit invalidates the detail
    cache.
 
+## CLI, when MCP is unavailable
+
+The `git-trace` binary is the same `TraceService` behind different syntax, so
+the numbers and the bounds in this skill do not change. Use it when no MCP
+server is configured.
+
+| Question                 | Command                                                        |
+| ------------------------ | -------------------------------------------------------------- |
+| Overview + headline data | `git-trace trace <owner/name>`                                 |
+| Commits in a window      | `git-trace commits <owner/name> --since <date> --until <date>` |
+| Pull requests / issues   | `git-trace items <owner/name> --kind pull --state all`         |
+| One PR or issue          | `git-trace track <owner/name> <n> --kind pull --limit 50`      |
+| Hot paths                | `git-trace hot-files <owner/name>`                             |
+| One file's history       | `git-trace file-history <owner/name> <path>`                   |
+
+- Piped output is Markdown; `--json` is the exact payload, so parse that.
+- `git-trace doctor <owner/name>` proves the read path before blaming the repo.
+- Auth ladder: `--token` → `GITHUB_TOKEN` → `GH_TOKEN` → `gh auth token` →
+  anonymous. Never print the token.
+
 ## Cost and window
 
 | Tool                 |                   GitHub requests | Actual window                                                                                          |

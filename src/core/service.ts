@@ -37,6 +37,7 @@ import type {
   TrackedItem,
   TrackedReview,
   TraceStats,
+  CommitDetail,
 } from "./types";
 
 /**
@@ -145,6 +146,13 @@ export class TraceService {
   async commits(input: string, opts: ListCommitsOptions & { q?: string } = {}): Promise<Commit[]> {
     const commits = await this.client.listCommits(this.resolveRepo(input), opts);
     return opts.q ? searchCommits(commits, opts.q) : commits;
+  }
+
+  /** One commit with its files and stats — what the commit view opens. */
+  commit(input: string, sha: string): Promise<CommitDetail> {
+    const target = sha.trim();
+    if (!target) throw new Error("sha is required");
+    return this.client.getCommit(this.resolveRepo(input), target);
   }
 
   async contributors(input: string): Promise<AuthorRollup[]> {

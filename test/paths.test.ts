@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { classifyPath } from "./paths";
+import { classifyPath } from "../src/web/lib/paths";
 
 describe("classifyPath", () => {
   test("buckets by extension", () => {

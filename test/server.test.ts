@@ -1,8 +1,8 @@
 import { expect, test } from "bun:test";
 import { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import { InMemoryTransport } from "@modelcontextprotocol/sdk/inMemory.js";
-import { createMcpServer } from "./server";
-import type { TraceService } from "../core/service";
+import { createMcpServer } from "../src/mcp/server";
+import type { TraceService } from "../src/core/service";
 
 test("exposes trace_items and resolves the repository-summary template", async () => {
   const calls: string[] = [];

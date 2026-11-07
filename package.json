@@ -3,12 +3,18 @@
   "version": "0.1.0",
   "private": true,
   "description": "Trace a Git repository's history — commits, contributors, activity, and hot files.",
+  "bin": {
+    "git-trace": "./dist/cli/index.js"
+  },
   "type": "module",
   "scripts": {
     "dev": "vite",
     "dev:worker": "wrangler dev --port 8787",
+    "cli": "bun run src/cli/index.ts",
+    "docs:cli": "bun run scripts/cli-docs.ts",
     "emulate": "bun run scripts/emulate.ts",
-    "build": "bun run build:web && bun run build:worker",
+    "build": "bun run build:web && bun run build:worker && bun run build:cli",
+    "build:cli": "bun build src/cli/index.ts --target=node --outfile=dist/cli/index.js",
     "build:web": "vite build",
     "build:worker": "vite build --config config/vite.worker.ts",
     "preview": "vite preview",

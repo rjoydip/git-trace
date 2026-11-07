@@ -34,11 +34,16 @@ src/
     github.ts     fetch client over the GitHub REST API + parseRepo()
     trace.ts      pure analysis: rollups, activity, hot files, file history
     service.ts    TraceService — the single source of truth for API + MCP
-    trace.test.ts unit tests for the pure analysis
+  cli/            in-process terminal adapter over TraceService
   mcp/server.ts   MCP tools/resources/prompt over the shared service
   worker/index.ts Hono app: /api/*, /mcp, static assets
   web/            shadcn dashboard (React + Tailwind v4, 11-tab control room)
+test/                  `bun test` — every unit, docs-coverage and CLI integration test
 vite.config.ts         dashboard build (dist/web)
+docs/cli.md            generated CLI option reference
+docs/api.md            HTTP JSON API reference
+docs/mcp.md            MCP tools, resource and prompt reference
+scripts/cli-docs.ts    generates docs/cli.md from the CLI option specs
 scripts/emulate.ts     seeded local GitHub for dev — `bun run emulate`
 wrangler.toml          Worker entry + assets
 .github/workflows/     CI (check + build) · Deploy (Cloudflare)
@@ -93,6 +98,34 @@ point at github.com, so those need a network.
 If `wrangler dev` dies with `SQLITE_BUSY` or "database is locked", two Workers
 are sharing `.wrangler/state` — usually one left over from an earlier shell.
 Stop every `wrangler dev`, delete `.wrangler/`, and start a single one.
+
+## CLI
+
+The same answers in a terminal, in-process — no Worker, no browser:
+
+```sh
+bun run cli trace rjoydip/git-trace
+bun run cli hot-files rjoydip/git-trace --limit 5
+bun run cli commits rjoydip/git-trace --author mona --since 2026-10-01
+bun run cli activity rjoydip/git-trace --days 14 --watch   # Ctrl+C to stop
+bun run build:cli && ./dist/cli/index.js prompt rjoydip/git-trace | pbcopy
+```
+
+Every command takes `--json` (the raw payload), `--verbose` (each GitHub request
+on stderr) and `--api` (another GitHub, e.g. the emulator above). Piped output is
+Markdown — headings, GFM tables and bullets, ready for a prompt or an issue — and
+a terminal gets the rendered view: bold headings, aligned tables, colour. `--md`
+forces Markdown on a terminal, `--text` forces columns when piped.
+`git-trace doctor owner/name` probes the read paths and exits non-zero if any
+fail; `git-trace mcp list|call|config` covers the agent surface.
+
+`git-trace login` signs in through `gh auth login` when the GitHub CLI is
+installed (the browser flow), or opens the token page and prints how to pass a
+PAT when it is not. A failed request names it too. Nothing is stored: the ladder
+is `--token` → `GITHUB_TOKEN` → `GH_TOKEN` → `gh auth token`.
+
+[`docs/cli.md`](docs/cli.md) is the full option reference, generated from the
+same specs `--help` prints.
 
 ## Deploy
 
@@ -268,24 +301,30 @@ Tools:
 Resource: `git-trace://repository/{owner}/{name}/summary`. Prompt: `history-review`.
 
 Every tool requires `repo` (`"owner/name"` or a GitHub URL) — there is no server-side default.
+Arguments, response shape and JSON-RPC examples: [`docs/mcp.md`](docs/mcp.md).
 
-### Agent skill
+### Agent skills
 
-An agent skill with cost, window and output guidance lives in
-`skills/git-trace/SKILL.md`. Install it with the
-[skills.sh](https://www.skills.sh/) CLI:
+Three skills live under `skills/`:
+
+| Skill                 | Use when                                                                                    |
+| --------------------- | ------------------------------------------------------------------------------------------- |
+| `git-trace`           | Answering a history question through the MCP server or CLI                                  |
+| `git-trace-preflight` | Starting a bug fix, feature or PR — duplicate check, then every instruction from the thread |
+| `git-trace-review`    | Reviewing a diff — the real gate plus per-area checks with evidence                         |
+
+Install them with the [skills.sh](https://www.skills.sh/) CLI:
 
 ```sh
 npx skills add rjoydip/git-trace                     # project scope, prompts for agent
 npx skills add rjoydip/git-trace -a opencode -y      # non-interactive, OpenCode only
 ```
 
-It installs into that agent's project skills directory (`.opencode/skills/` for
-OpenCode, `.claude/skills/` for Claude Code) as a symlink back to
-`skills/git-trace/`, so the repo copy stays the single source of truth. Add `-g`
-to install it for every project instead; `npx skills list` shows what is
-installed and `npx skills update` pulls newer versions. Other skills are on
-[skills.sh](https://www.skills.sh/).
+They install into that agent's project skills directory (`.opencode/skills/` for
+OpenCode, `.claude/skills/` for Claude Code) as symlinks back to `skills/`, so
+the repo copy stays the single source of truth. Add `-g` to install for every
+project instead; `npx skills list` shows what is installed and `npx skills
+update` pulls newer versions. Other skills are on [skills.sh](https://www.skills.sh/).
 
 ## JSON API
 
@@ -309,6 +348,9 @@ installed and `npx skills update` pulls newer versions. Other skills are on
 | `GET /api/track?repo=&number=&kind=`             | One pull request or issue with its timeline     |
 | `GET /api/items?repo=&state=&limit=`             | Pull requests and issues, newest activity first |
 | `GET /api/health`                                | Liveness                                        |
+
+Headers, parameter bounds, error shape and payload types:
+[`docs/api.md`](docs/api.md).
 
 ## Rate limits
 
